@@ -32,9 +32,9 @@
         .equipment-list { background: #0b0e16; border-radius: 24px; padding: 16px; font-size: 0.8rem; margin-bottom: 20px; line-height: 1.5; }
         .cabling-canvas { background: #0a0c12; border-radius: 24px; padding: 16px; overflow-x: auto; margin-bottom: 24px; }
         .matrix-visual { display: inline-grid; gap: 3px; background: #1e2436; padding: 12px; border-radius: 16px; }
-        .cab-module { width: 74px; height: 74px; background: #191e2c; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; border: 2px solid transparent; transition: 0.1s; }
+        .cab-module { width: 74px; height: 74px; background: #191e2c; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; border: 1px solid #2a3448; color: #fff; }
         .small-text { font-size: 10px; font-weight: 500; margin-top: 4px; background: #00000070; padding: 2px 6px; border-radius: 20px; }
-        .btn-pdf { background: linear-gradient(95deg,#C5A059,#B8913C); border: none; padding: 12px 16px; border-radius: 40px; font-weight: bold; color: #0a0e17; cursor: pointer; width: 100%; margin-top: 20px; font-size: 0.9rem; }
+        .btn-pdf { background: linear-gradient(95deg,#C5A059,#B8913C); border: none; padding: 12px 16px; border-radius: 40px; font-weight: bold; color: #0a0e17; cursor: pointer; width: 100%; margin-top: 12px; }
         .btn-excel { background: #2d3e5f; border: none; padding: 12px 16px; border-radius: 40px; font-weight: bold; color: #fff; cursor: pointer; width: 100%; margin-top: 12px; }
         @media (max-width: 780px) { .design-dashboard { grid-template-columns: 1fr; } .cab-module { width: 60px; height: 60px; } }
     </style>
@@ -56,6 +56,7 @@
         </div>
         <div class="right-panel">
             <div class="stats-grid" id="statsGrid"></div>
+            <div class="equipment-list" id="equipmentList">等待计算...</div>
             <div class="section-title">🔌 电源布线图 (P回路-序号)</div>
             <div class="cabling-canvas"><div id="powerCanvas">等待计算...</div></div>
             <div class="section-title">🌐 网线布线图 (D网口-序号)</div>
@@ -82,7 +83,6 @@ const productDatabase = [
     { Product: "Vanish ST", "Panel Type": "V4ST", Size: "Full", "Pixel Width": 216, "Pixel Height": 216, Power: 700, Weight: 8.5, "点间距": 4.8 },
     { Product: "Coral", "Panel Type": "CR0.9", Size: "Full", "Pixel Width": 640, "Pixel Height": 720, Power: 120, Weight: 7.5, "点间距": 0.9 },
     { Product: "ArtMorph", "Panel Type": "AM6", Size: "Quarter", "Pixel Width": 40, "Pixel Height": 40, Power: 30, Weight: 5.0, "点间距": 6.2 },
-    // 默认后备 Full 尺寸（防止未匹配）
 ];
 // 当前选中的产品对象
 let currentProductObj = null;
@@ -406,6 +406,7 @@ function computeSystem() {
         powerCanvas.innerHTML = '⚠️ 请至少输入一种屏体数量';
         networkCanvas.innerHTML = '';
         document.getElementById('statsGrid').innerHTML = '';
+        document.getElementById('equipmentList').innerHTML = '';
         return;
     }
     let { cols, rows } = findBestRectangle(totalEquiv);
@@ -455,7 +456,7 @@ function exportBothPDF() {
         .title { font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #333; }
         .diagram { display: flex; justify-content: center; margin-top: 10px; }
         .matrix-visual { display: inline-grid; gap: 3px; background: #e9e9e9; padding: 12px; border-radius: 8px; }
-        .cab-module { width: 70px; height: 70px; background: #f5f5f5; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #999; font-size: 8px; }
+        .cab-module { width: 70px; height: 70px; background: #f5f5f5; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #999; font-size: 9px; }
         .small-text { font-size: 10px; font-weight: bold; margin-top: 4px; background: #eee; padding: 2px 6px; border-radius: 12px; }
     </style>
     </head>
