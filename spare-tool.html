@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能备品系统 | 专业版</title>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+<style>
+
+:root{
+    --bg-dark:#0a0e17;
+    --panel-bg:rgba(16,24,39,.85);
+    --border-glow:#00f0ff;
+    --text-main:#e2e8f0;
+    --text-muted:#94a3b8;
+    --accent-cyan:#22d3ee;
+    --accent-blue:#3b82f6;
+    --accent-green:#10b981;
+    --accent-orange:#f59e0b;
+}
+
+*{
+    box-sizing:border-box;
+    font-family:'Segoe UI',system-ui,sans-serif;
+}
+
+body{
+    background:radial-gradient(circle at top right,#111827,var(--bg-dark));
+    margin:0;
+    padding:30px 20px;
+    display:flex;
+    justify-content:center;
+    color:var(--text-main);
+    min-height:100vh;
+}
+
+.container{
+    max-width:1550px;
+    width:100%;
+    background:var(--panel-bg);
+    backdrop-filter:blur(12px);
+    border-radius:24px;
+    border:1px solid rgba(0,240,255,.15);
+    box-shadow:0 0 30px rgba(0,240,255,.05);
+    padding:36px 40px;
+}
+
+h1{
+    font-size:2rem;
+    font-weight:800;
+    margin:0 0 8px;
+    background:linear-gradient(90deg,var(--border-glow),var(--accent-blue));
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+}
+
+.sub{
+    color:var(--text-muted);
+    border-left:3px solid var(--accent-cyan);
+    padding-left:14px;
+    margin-bottom:30px;
+    font-size:.9rem;
+    font-family:monospace;
+}
+
+.search-section{
+    background:rgba(15,23,42,.6);
+    border-radius:20px;
+    padding:20px 24px;
+    border:1px solid rgba(255,255,255,.05);
+    margin-bottom:30px;
+}
+
+.search-wrapper{
+    display:flex;
+    align-items:center;
+    background:rgba(0,0,0,.4);
+    border-radius:40px;
+    border:1px solid rgba(34,211,238,.3);
+}
+
+.product-input{
+    flex:1;
+    padding:14px 24px;
+    font-size:1rem;
+    color:#fff;
+    border:none;
+    background:transparent;
+    outline:none;
+}
+
+.dropdown-btn{
+    background:rgba(34,211,238,.1);
+    border:1px solid rgba(34,211,238,.3);
+    color:var(--accent-cyan);
+    border-radius:30px;
+    padding:10px 24px;
+    margin-right:6px;
+    cursor:pointer;
+}
+
+.search-suggestions{
+    margin-top:16px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+.suggestion-tag{
+    background:rgba(34,211,238,.1);
+    border:1px solid rgba(34,211,238,.4);
+    padding:6px 16px;
+    border-radius:20px;
+    cursor:pointer;
+    color:var(--accent-cyan);
+    font-size:.8rem;
+}
+
+.dropdown-panel{
+    margin-top:18px;
+    background:rgba(15,23,42,.95);
+    border-radius:20px;
+    border:1px solid rgba(34,211,238,.2);
+    max-height:420px;
+    overflow-y:auto;
+}
+
+.dropdown-panel.collapsed{
+    display:none;
+}
+
+.category-group{
+    margin:12px;
+    border-bottom:1px solid rgba(255,255,255,.05);
+}
+
+.category-title{
+    font-weight:700;
+    color:var(--accent-cyan);
+    padding:12px;
+    cursor:pointer;
+}
+
+.product-item{
+    margin:10px 0;
+    border-left:2px solid rgba(34,211,238,.3);
+    padding-left:12px;
+}
+
+.product-header{
+    color:#94a3b8;
+    background:rgba(255,255,255,.03);
+    padding:6px 14px;
+    border-radius:20px;
+    cursor:pointer;
+}
+
+.model-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px 0 10px 20px;
+}
+
+.model-list.collapsed,
+.products-container.collapsed{
+    display:none;
+}
+
+.model-chip{
+    background:rgba(0,0,0,.3);
+    border-radius:30px;
+    padding:6px 16px;
+    font-size:.8rem;
+    cursor:pointer;
+    color:#cbd5e1;
+    border:1px solid rgba(255,255,255,.1);
+}
+
+.control-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:24px;
+    margin-top:36px;
+    background:rgba(0,0,0,.2);
+    padding:18px 24px;
+    border-radius:20px;
+}
+
+.control-group{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:rgba(30,41,59,.5);
+    padding:8px 20px;
+    border-radius:40px;
+}
+
+select{
+    background:#0f172a;
+    color:var(--accent-cyan);
+    border:1px solid rgba(34,211,238,.3);
+    padding:6px 14px;
+    border-radius:20px;
+}
+
+.size-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+}
+
+.size-card{
+    background:rgba(15,23,42,.6);
+    padding:16px;
+    border-radius:20px;
+    border:1px solid rgba(255,255,255,.08);
+    text-align:center;
+    min-width:140px;
+}
+
+.size-label{
+    font-weight:700;
+    font-size:.85rem;
+    color:var(--accent-cyan);
+    margin-bottom:8px;
+}
+
+.size-input{
+    padding:8px 12px;
+    border-radius:30px;
+    border:1px solid rgba(56,189,248,.3);
+    width:90px;
+    text-align:center;
+    background:rgba(0,0,0,.3);
+    color:#fff;
+    margin-top:12px;
+}
+
+.size-matrix{
+    display:inline-flex;
+    flex-direction:column;
+    gap:4px;
+}
+
+.matrix-row{
+    display:flex;
+    gap:4px;
+    justify-content:center;
+}
+
+.matrix-cell{
+    width:22px;
+    height:22px;
+    background-color:rgba(34,211,238,.8);
+    border-radius:4px;
+}
+
+.spare-table-wrapper{
+    overflow-x:auto;
+    border-radius:16px;
+    border:1px solid rgba(56,189,248,.2);
+    margin-top:24px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    padding:14px 18px;
+    border-bottom:1px solid rgba(255,255,255,.05);
+}
+
+th{
+    background:rgba(15,23,42,.8);
+    color:var(--accent-cyan);
+}
+
+.qty-free{
+    color:var(--accent-green);
+    font-weight:700;
+}
+
+.qty-buy{
+    color:var(--accent-orange);
+    font-weight:700;
+}
+
+.selected-model-header{
+    font-weight:700;
+    color:var(--border-glow);
+    background:rgba(34,211,238,.1);
+    display:inline-block;
+    padding:6px 20px;
+    border-radius:40px;
+    margin-bottom:20px;
+}
+
+.btn-excel{
+    background:linear-gradient(135deg,#10b981,#059669);
+    color:white;
+    border:none;
+    padding:12px 28px;
+    border-radius:40px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:20px;
+}
+/* ===== 移动端适配 ===== */
+@media (max-width: 768px) {
+    body {
+        padding: 15px 8px;
+    }
+    .container {
+        padding: 20px 12px;
+        border-radius: 16px;
+    }
+    h1 {
+        font-size: 1.5rem;
+    }
+    .search-wrapper {
+        flex-direction: column;
+        gap: 10px;
+        background: transparent;
+        border: none;
+    }
+    .product-input {
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        background: rgba(0,0,0,.4);
+        border-radius: 30px;
+        border: 1px solid rgba(34,211,238,.3);
+    }
+    .dropdown-btn {
+        width: 100%;
+        text-align: center;
+        margin-right: 0;
+        padding: 10px 0;
+    }
+    .size-grid {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .size-card {
+        min-width: 100%;
+    }
+    .control-row {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+    }
+    .control-group {
+        flex-wrap: wrap;
+        justify-content: center;
+        font-size: 0.85rem;
+    }
+    .spare-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    table {
+        font-size: 0.75rem;
+        min-width: 650px;
+    }
+    th, td {
+        padding: 8px 6px;
+    }
+    .btn-excel {
+        width: 100%;
+        text-align: center;
+        padding: 14px;
+    }
+    .search-suggestions {
+        gap: 6px;
+    }
+    .suggestion-tag {
+        font-size: 0.7rem;
+        padding: 4px 10px;
+    }
+    .dropdown-panel {
+        max-height: 300px;
+    }
+    .category-title {
+        font-size: 0.85rem;
+        padding: 10px;
+    }
+    .model-chip {
+        font-size: 0.7rem;
+        padding: 4px 10px;
+    }
+    .selected-model-header {
+        font-size: 0.85rem;
+        padding: 4px 14px;
+    }
+    #spareContainer h3 {
+        font-size: 1rem;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<button onclick="window.parent.postMessage('closeTool', '*')" style="background:#2563eb;border:none;color:#fff;padding:8px 16px;border-radius:12px;cursor:pointer;font-weight:600;font-size:0.9rem;margin-bottom:1rem;">返回填单大厅</button>
+
+<h1>备品物料清单</h1>
+
+
+<div class="search-section">
+
+    <div class="search-wrapper">
+        <input type="text" id="productSearchInput" class="product-input" placeholder="输入产品型号搜索...">
+        <button id="dropdownToggleBtn" class="dropdown-btn">产品目录</button>
+    </div>
+
+    <div id="suggestionArea" class="search-suggestions" style="display:none;"></div>
+
+    <div id="dropdownPanel" class="dropdown-panel collapsed"></div>
+
+</div>
+
+<div id="quantityPanel" style="display:none;">
+
+    <div id="selectedModelDisplay" class="selected-model-header">
+        未选择型号
+    </div>
+
+    <div id="dynamicSizesContainer"></div>
+
+    <div class="control-row">
+
+        <div class="control-group">
+            <span>🎛️ 主控系统：</span>
+            <select id="systemSelect"></select>
+        </div>
+
+        <div class="control-group">
+            <input type="checkbox" id="demoCheckbox">
+            <label>🎪 展会Demo</label>
+        </div>
+
+        <div class="control-group">
+            <input type="checkbox" id="customCheckbox">
+            <label>📐 异形尺寸 (URC)</label>
+
+            <div id="urcInputWrapper" style="display:none;">
+                <input type="number" id="urcCount" class="size-input" value="0" min="0">
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<div id="spareContainer" style="display:none;margin-top:30px;">
+
+    <h3>📦 备品清单</h3>
+
+    <div class="spare-table-wrapper">
+
+        <table id="spareTable">
+
+            <thead>
+            <tr>
+                <th>产品型号</th>
+                <th>物料名称</th>
+                <th>SAP</th>
+                <th>物料描述</th>
+                <th>免费备品</th>
+                <th>建议购买</th>
+                <th>备注</th>
+            </tr>
+            </thead>
+
+            <tbody id="spareTbody"></tbody>
+
+        </table>
+
+    </div>
+
+    <button id="exportExcelBtn" class="btn-excel">
+        📎 导出 Excel
+    </button>
+
+</div>
+
+</div>
+
+<script>
+
+let rawBomData = [];
+let uniqueModels = [];
+
+let currentModel = null;
+let sizeQuantities = {};
+let currentSystem = "";
+
+let isDemo = false;
+let customEnabled = false;
+let urcCount = 0;
+
+const VALID_SYSTEMS = [
+    "Brompton",
+    "MVR",
+    "Nova",
+    "Colorlight",
+    "Other System"
+];
+
+const EMERGENCY_ITEMS = [
+    {name:"模组IM"},
+    {name:"开关电源PSU"},
+    {name:"转接板HUB board"},
+    {name:"接收卡Receiving Card"}
+];
+
+const searchInput = document.getElementById('productSearchInput');
+const dropdownBtn = document.getElementById('dropdownToggleBtn');
+const dropdownPanel = document.getElementById('dropdownPanel');
+const suggestionArea = document.getElementById('suggestionArea');
+
+const quantityPanel = document.getElementById('quantityPanel');
+const selectedModelDisplay = document.getElementById('selectedModelDisplay');
+const dynamicSizesContainer = document.getElementById('dynamicSizesContainer');
+
+const systemSelect = document.getElementById('systemSelect');
+
+const demoCheckbox = document.getElementById('demoCheckbox');
+
+const customCheckbox = document.getElementById('customCheckbox');
+const urcInputWrapper = document.getElementById('urcInputWrapper');
+const urcCountInput = document.getElementById('urcCount');
+
+const spareContainer = document.getElementById('spareContainer');
+const spareTbody = document.getElementById('spareTbody');
+
+const exportExcelBtn = document.getElementById('exportExcelBtn');
+
+function renderMatrixIcon(sizeType){
+
+    const div=document.createElement('div');
+    div.className='size-matrix';
+
+    if(sizeType==="Full"){
+
+        div.innerHTML=`
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+                <span class="matrix-cell"></span>
+            </div>
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+                <span class="matrix-cell"></span>
+            </div>
+        `;
+
+    }else if(sizeType==="Half"){
+
+        div.innerHTML=`
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+                <span class="matrix-cell"></span>
+            </div>
+        `;
+
+}else if(sizeType==="Edge"){
+
+        div.innerHTML=`
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+                <span style="width:22px;height:22px;border-radius:4px;"></span>
+            </div>
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+                <span class="matrix-cell"></span>
+            </div>
+        `;
+
+    }else if(sizeType==="Vertical"){
+
+        div.innerHTML=`
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+            </div>
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+            </div>
+        `;
+
+    }else{
+
+        div.innerHTML=`
+            <div class="matrix-row">
+                <span class="matrix-cell"></span>
+            </div>
+        `;
+    }
+
+    return div;
+}
+function buildTree(data){
+
+    let tree={};
+    let modelSet=new Set();
+
+    data.forEach(row=>{
+
+        let model=row["产品型号"]?.toString().trim();
+
+        if(!model)return;
+
+        modelSet.add(model);
+
+        let cat=row["产品分类"] || "未分类";
+        let pname=row["产品名称"] || "未命名";
+
+        if(!tree[cat])tree[cat]={};
+        if(!tree[cat][pname])tree[cat][pname]=new Set();
+
+        tree[cat][pname].add(model);
+
+    });
+
+    uniqueModels=Array.from(modelSet).sort();
+
+    let html='';
+
+    for(let [cat,products] of Object.entries(tree)){
+
+        html+=`
+        <div class="category-group">
+            <div class="category-title">📁 ${cat}</div>
+            <div class="products-container collapsed">
+        `;
+
+        for(let [pname,models] of Object.entries(products)){
+
+            html+=`
+            <div class="product-item">
+                <div class="product-header">📌 ${pname}</div>
+                <div class="model-list collapsed">
+            `;
+
+            models.forEach(m=>{
+                html+=`
+                    <span class="model-chip" data-model="${m}">
+                        🔍 ${m}
+                    </span>
+                `;
+            });
+
+            html+=`</div></div>`;
+        }
+
+        html+=`</div></div>`;
+    }
+
+    dropdownPanel.innerHTML=html;
+
+    document.querySelectorAll('.category-title').forEach(el=>{
+        el.addEventListener('click',()=>{
+            el.nextElementSibling.classList.toggle('collapsed');
+        });
+    });
+
+    document.querySelectorAll('.product-header').forEach(el=>{
+        el.addEventListener('click',()=>{
+            el.nextElementSibling.classList.toggle('collapsed');
+        });
+    });
+
+    document.querySelectorAll('.model-chip').forEach(chip=>{
+        chip.addEventListener('click',()=>{
+            selectModelAndUpdate(chip.dataset.model);
+            dropdownPanel.classList.add('collapsed');
+        });
+    });
+}
+
+function updateSystemOptions(model){
+
+    let systems=new Set();
+
+    rawBomData.forEach(row=>{
+
+        let rowModel=row["产品型号"]?.toString().trim();
+        let rowSystem=row["系统"]?.toString().trim();
+
+        if(rowModel===model && VALID_SYSTEMS.includes(rowSystem)){
+            systems.add(rowSystem);
+        }
+
+    });
+
+    let html='';
+
+    Array.from(systems).sort().forEach(sys=>{
+        html+=`<option value="${sys}">${sys}</option>`;
+    });
+
+    systemSelect.innerHTML=html;
+
+    currentSystem=Array.from(systems)[0] || "";
+    systemSelect.value=currentSystem;
+}
+
+function getModelSizes(model){
+
+    let sizes=new Set();
+
+    rawBomData.forEach(row=>{
+
+        if(row["产品型号"]?.toString().trim()===model){
+
+            let s=row["尺寸"]?.toString().trim() || "";
+
+            if(s.toLowerCase()==="quarter")s="Mini";
+
+            if(s)sizes.add(s);
+        }
+
+    });
+
+    if(sizes.size===0)sizes.add("Full");
+
+      const SIZE_ORDER = ["Full", "Half", "Edge", "Vertical", "Mini"];
+    return Array.from(sizes).sort((a, b) => {
+        return SIZE_ORDER.indexOf(a) - SIZE_ORDER.indexOf(b);
+    });
+}
+
+
+function selectModelAndUpdate(model){
+
+    currentModel=model;
+
+    searchInput.value=model;
+
+    selectedModelDisplay.innerText=`📌 当前型号：${model}`;
+
+    updateSystemOptions(model);
+
+    let sizes=getModelSizes(model);
+
+    sizeQuantities={};
+
+    sizes.forEach(s=>sizeQuantities[s]=0);
+
+    renderSizeCards(sizes);
+
+    quantityPanel.style.display="block";
+
+    computeAndRender();
+}
+
+function renderSizeCards(sizes){
+
+    dynamicSizesContainer.innerHTML='';
+
+    let grid=document.createElement('div');
+    grid.className='size-grid';
+
+    sizes.forEach(sz=>{
+
+        let card=document.createElement('div');
+        card.className='size-card';
+
+let displaySize = (sz === "Mini") ? "Quarter" : sz;
+card.innerHTML = `
+    <div class="size-label">${currentModel} (${displaySize})</div>
+`;
+
+        card.appendChild(renderMatrixIcon(sz));
+
+        let inp=document.createElement('input');
+
+        inp.type='number';
+        inp.min=0;
+        inp.value=0;
+        inp.className='size-input';
+
+        inp.addEventListener('input',e=>{
+
+            let v=parseInt(e.target.value,10);
+
+            if(isNaN(v))v=0;
+
+            sizeQuantities[sz]=v;
+
+            computeAndRender();
+        });
+
+        card.appendChild(inp);
+
+        grid.appendChild(card);
+
+    });
+
+    dynamicSizesContainer.appendChild(grid);
+}
+
+searchInput.addEventListener('input',()=>{
+
+    let q=searchInput.value.trim().toLowerCase();
+
+    if(!q){
+        suggestionArea.style.display='none';
+        return;
+    }
+
+    let matched=uniqueModels.filter(m=>
+        m.toLowerCase().includes(q)
+    ).slice(0,10);
+
+    suggestionArea.innerHTML=matched.map(m=>`
+        <span class="suggestion-tag" data-model="${m}">
+            🔍 ${m}
+        </span>
+    `).join('');
+
+    suggestionArea.style.display=matched.length ? 'flex' : 'none';
+
+    document.querySelectorAll('.suggestion-tag').forEach(tag=>{
+        tag.addEventListener('click',()=>{
+            selectModelAndUpdate(tag.dataset.model);
+            suggestionArea.style.display='none';
+        });
+    });
+
+});
+
+dropdownBtn.addEventListener('click',()=>{
+    dropdownPanel.classList.toggle('collapsed');
+});
+
+systemSelect.addEventListener('change',()=>{
+    currentSystem=systemSelect.value;
+    computeAndRender();
+});
+
+demoCheckbox.addEventListener('change',()=>{
+    isDemo=demoCheckbox.checked;
+    computeAndRender();
+});
+
+customCheckbox.addEventListener('change',e=>{
+
+    customEnabled=e.target.checked;
+
+    urcInputWrapper.style.display=customEnabled ? 'block' : 'none';
+
+    computeAndRender();
+
+});
+
+urcCountInput.addEventListener('input',e=>{
+
+    let v=parseInt(e.target.value,10);
+
+    urcCount=isNaN(v) ? 0 : v;
+
+    computeAndRender();
+
+});
+
+function computeAndRender(){
+
+    if(!currentModel)return;
+
+    let allRows=[];
+
+    let totalUnits=0;
+
+    for(let [sz,qty] of Object.entries(sizeQuantities)){
+
+        if(sz==="Full")totalUnits+=qty;
+        else if(sz==="Half" || sz==="Vertical")totalUnits+=qty*.5;
+        else if(sz==="Mini")totalUnits+=qty*.25;
+    }
+
+    totalUnits=Math.ceil(totalUnits);
+
+    let isVoyager=currentModel.toLowerCase().includes("voyager");
+
+    // =========================
+    // 非 Voyager 且 >0 且 ≤8
+    // =========================
+
+   // =========================
+// 非 Voyager 且 >0 且 ≤8
+// 核心逻辑：免费备品原始计算值 >=1 才保留，否则不显示该行
+// 额外添加4个建议购买的紧急备品
+// =========================
+if(!isVoyager && totalUnits > 0 && totalUnits <= 8){
+
+    // 第一步：筛选当前型号在BOM中的所有物料
+    let matched = rawBomData.filter(row => {
+        let rowModel = row["产品型号"]?.toString().trim();
+        if (rowModel !== currentModel) return false;
+
+        let rowSize = row["尺寸"]?.toString().trim() || "";
+        if (rowSize.toLowerCase() === "quarter") rowSize = "Mini";
+        if (rowSize !== "" && (!sizeQuantities[rowSize] || sizeQuantities[rowSize] <= 0)) {
+            return false;
+        }
+
+        let rowSys = row["系统"]?.toString().trim() || "";
+        if (VALID_SYSTEMS.includes(rowSys)) {
+            return rowSys === currentSystem;
+        }
+        return true;
+    });
+
+   matched.forEach(row => {
+    let material = row["物料名称"] || "";
+    
+    // 只保留面罩、灯珠、模组，其他物料（螺丝、电源等）直接跳过
+// 允许的物料：面罩、灯珠、模组、驱动IC、行MOS管
+const isAllowedMaterial = material.includes("面罩") || material.includes("灯珠") || material.includes("模组")
+                        || material.includes("驱动IC") || material.includes("行MOS管");
+if (!isAllowedMaterial) return;
+        let freeRatioStr = (row["免费比例"] || "0").toString().trim();
+        let buyRatioStr = (row["购买比例"] || "0").toString().trim();
+
+        let freeRatio = 0, buyRatio = 0;
+        if (freeRatioStr.includes("%")) {
+            freeRatio = parseFloat(freeRatioStr) / 100;
+        } else {
+            freeRatio = parseFloat(freeRatioStr);
+        }
+        if (isNaN(freeRatio)) freeRatio = 0;
+
+        if (buyRatioStr.includes("%")) {
+            buyRatio = parseFloat(buyRatioStr) / 100;
+        } else {
+            buyRatio = parseFloat(buyRatioStr);
+        }
+        if (isNaN(buyRatio)) buyRatio = 0;
+
+        let rowSize2 = row["尺寸"]?.toString().trim() || "";
+        if (rowSize2.toLowerCase() === "quarter") rowSize2 = "Mini";
+
+        let baseQty;
+        if (rowSize2 === "") {
+            baseQty = totalUnits;
+        } else {
+            baseQty = sizeQuantities[rowSize2] || 0;
+        }
+
+        // 计算原始值（不向上取整）
+        let rawFree = baseQty * freeRatio;
+        let rawBuy = baseQty * buyRatio;
+
+        // ≤8台：只有原始免费值 >= 1 才保留
+        if (rawFree >= 1) {
+            let free = Math.floor(rawFree);
+            let buy = Math.ceil(rawBuy);
+            
+            // 展会Demo：灯珠和面罩数量 ×10
+            if (isDemo) {
+                if (material.includes("灯珠") || material.includes("面罩")) {
+                    free *= 10;
+                }
+            }
+            
+    
+    allRows.push({
+        产品型号: currentModel,
+        物料名称: row["物料名称"] || "",
+        SAP: row["SAP"] || "-",
+        物料描述: row["物料描述"] || "-",
+        免费备品: free,
+        建议购买: buy,
+        备注: row["备注"] || "≤8台(免费原始值≥1保留)"
+    });
+}
+    });
+
+    // 第三步：额外添加4个建议购买的紧急备品（免费=0，建议=1）
+// 第三步：检查哪些紧急备品已经在BOM中出现了，避免重复添加
+// ≤8台 场景中，在 matched.forEach 收集完 allRows 之后，添加以下代码：
+
+const CORE_TYPES = [
+    { keyword: "模组",          name: "模组IM",       fallbackDesc: "模组备品" },
+    { keyword: "电源",          name: "开关电源PSU",   fallbackDesc: "电源备品" },
+    { keyword: "转接板",        name: "转接板HUB board", fallbackDesc: "转接板备品" },
+    { keyword: "接收卡",        name: "接收卡Receiving Card", fallbackDesc: "接收卡备品" }
+];
+
+CORE_TYPES.forEach(type => {
+    // 1. 检查 allRows 中是否已存在该类型物料（包含关键词）
+    let existingRow = allRows.find(row => row.物料名称.includes(type.keyword));
+    
+    if (existingRow) {
+        // 已存在：确保建议购买至少为 1
+        if (existingRow.建议购买 < 1) existingRow.建议购买 = 1;
+        // 保留免费数量不变（原计算值可能为 0）
+    } else {
+        // 2. 不存在：从 BOM 中查找正式物料
+        let bomMatch = rawBomData.find(row => {
+            let rowModel = row["产品型号"]?.toString().trim();
+            let rowMaterial = row["物料名称"] || "";
+            let rowSys = row["系统"]?.toString().trim() || "";
+            if (rowModel !== currentModel) return false;
+            if (VALID_SYSTEMS.includes(rowSys) && rowSys !== currentSystem) return false;
+            return rowMaterial.includes(type.keyword);
+        });
+        
+        if (bomMatch) {
+            // 使用 BOM 中的正式物料信息
+            allRows.push({
+                产品型号: currentModel,
+                物料名称: bomMatch["物料名称"],
+                SAP: bomMatch["SAP"] || "-",
+                物料描述: bomMatch["物料描述"] || "-",
+                免费备品: 0,
+                建议购买: 1,
+                备注: "≤8台建议购买一套备用"
+            });
+        } else {
+            // 完全找不到，回退到原始紧急备品行
+            allRows.push({
+                产品型号: currentModel,
+                物料名称: type.name,
+                SAP: "-",
+                物料描述: type.fallbackDesc,
+                免费备品: 0,
+                建议购买: 1,
+                备注: "≤8台请购买一套备品备用"
+            });
+        }
+    }
+    });    // ← CORE_TYPES.forEach 结束
+    
+}   // ← 添加这一行，关闭 if(!isVoyager && totalUnits > 0 && totalUnits <= 8) 块
+
+// =========================
+    // Voyager 或 >8
+    // =========================
+
+    if(
+        isVoyager ||
+        totalUnits > 8
+    ){
+
+let matched = rawBomData.filter(row => {
+
+    let rowModel = row["产品型号"]?.toString().trim();
+
+    if (rowModel !== currentModel) return false;
+
+    // ===== 新增：尺寸筛选 =====
+    let rowSize = row["尺寸"]?.toString().trim() || "";
+    // 标准化：Quarter → Mini
+    if (rowSize.toLowerCase() === "quarter") rowSize = "Mini";
+
+    // 如果尺寸字段有值，且该尺寸数量为 0，跳过
+    if (rowSize !== "" && (!sizeQuantities[rowSize] || sizeQuantities[rowSize] <= 0)) {
+        return false;
+    }
+    // ===== 尺寸筛选结束 =====
+
+    let rowSys = row["系统"]?.toString().trim() || "";
+
+    // 系统字段是合法系统
+    if (VALID_SYSTEMS.includes(rowSys)) {
+        return rowSys === currentSystem;
+    }
+
+    // 空白 / LED / Mask / IC 等全部保留
+    return true;
+
+});
+
+matched.forEach(row=>{
+
+            let material=row["物料名称"] || "";
+
+            // ===== 分别读取免费比例和购买比例 =====
+            let freeRatioStr = (row["免费比例"] || "0").toString().trim();
+            let buyRatioStr = (row["购买比例"] || "0").toString().trim();
+
+            let freeRatio = 0;
+            let buyRatio = 0;
+
+            if (freeRatioStr.includes("%")) {
+                freeRatio = parseFloat(freeRatioStr) / 100;
+            } else {
+                freeRatio = parseFloat(freeRatioStr);
+            }
+            if (isNaN(freeRatio)) freeRatio = 0;
+
+            if (buyRatioStr.includes("%")) {
+                buyRatio = parseFloat(buyRatioStr) / 100;
+            } else {
+                buyRatio = parseFloat(buyRatioStr);
+            }
+            if (isNaN(buyRatio)) buyRatio = 0;
+
+            // ===== 分别计算 =====
+let rowSize2 = row["尺寸"]?.toString().trim() || "";
+            if (rowSize2.toLowerCase() === "quarter") rowSize2 = "Mini";
+
+            // 尺寸为空 → 通用物料，用 totalUnits；尺寸有值 → 用该尺寸数量
+            let baseQty;
+            if (rowSize2 === "") {
+                baseQty = totalUnits;
+            } else {
+                baseQty = sizeQuantities[rowSize2] || 0;
+            }
+            // =====
+
+            // ===== 分别计算 =====
+            let free = Math.ceil(baseQty * freeRatio);
+            let buy = Math.ceil(baseQty * buyRatio);
+
+            if (free < 1 && freeRatio > 0) free = 1;
+            if (buy < 1 && buyRatio > 0) buy = 1;
+
+            if (isDemo && (
+                material.includes("灯珠") ||
+                material.includes("面罩")
+            )){
+                free *= 10;
+            }
+
+            if (free <= 0 && buy <= 0) return;
+
+            allRows.push({
+                产品型号:currentModel,
+                物料名称:material,
+                SAP:row["SAP"] || "-",
+                物料描述:row["物料描述"] || "-",
+                免费备品:free,
+                建议购买:buy,
+                备注:row["备注"] || ""
+            });
+
+        });
+
+    }
+
+    // =========================
+    // URC
+    // =========================
+
+    if(customEnabled && urcCount > 0){
+
+        if(urcCount<=8){
+
+            EMERGENCY_ITEMS.forEach(item=>{
+
+                allRows.push({
+                    产品型号:"URC异形",
+                    物料名称:item.name,
+                    SAP:"-",
+                    物料描述:"URC异形备品",
+                    免费备品:0,
+                    建议购买:1,
+                    备注:"异形屏体数量 ≤ 8台：不配置免费备品。建议客户购买一套备品"
+                });
+
+            });
+
+        }else{
+
+            EMERGENCY_ITEMS.forEach(item=>{
+
+                let ratio=
+                    item.name.includes("PSU")
+                    ? 0.005
+                    : 0.01;
+
+                let freeQty=Math.ceil(urcCount*ratio);
+
+                if(freeQty<1)freeQty=1;
+
+                allRows.push({
+                    产品型号:"URC异形",
+                    物料名称:item.name,
+                    SAP:"-",
+                    物料描述:"URC异形比例备品",
+                    免费备品:freeQty,
+                    建议购买:0,
+                    备注:"URC比例计算"
+                });
+
+            });
+
+        }
+
+    }
+
+    spareTbody.innerHTML=allRows.map(r=>`
+        <tr>
+            <td>${r.产品型号}</td>
+            <td>${r.物料名称}</td>
+            <td>${r.SAP}</td>
+            <td>${r.物料描述}</td>
+            <td class="qty-free">${r.免费备品}</td>
+            <td class="qty-buy">${r.建议购买}</td>
+            <td>${r.备注}</td>
+        </tr>
+    `).join('');
+
+    spareContainer.style.display=allRows.length ? 'block' : 'none';
+}
+
+exportExcelBtn.addEventListener('click',()=>{
+
+    let wb=XLSX.utils.book_new();
+
+    let wsData=[
+        ["产品型号","物料名称","SAP","物料描述","免费备品","建议购买","备注"]
+    ];
+
+    document.querySelectorAll('#spareTbody tr').forEach(tr=>{
+
+        let row=[];
+
+        tr.querySelectorAll('td').forEach(td=>{
+            row.push(td.innerText);
+        });
+
+        wsData.push(row);
+
+    });
+
+    let ws=XLSX.utils.aoa_to_sheet(wsData);
+
+    ws['!cols']=[
+        {wch:22},
+        {wch:28},
+        {wch:18},
+        {wch:35},
+        {wch:12},
+        {wch:12},
+        {wch:20}
+
+    ];
+
+    XLSX.utils.book_append_sheet(wb,ws,"备品清单");
+
+    XLSX.writeFile(wb,`备品清单_${currentModel}.xlsx`);
+
+});
+
+fetch('Spare_Parts.json')
+.then(res=>res.json())
+.then(data=>{
+
+    rawBomData=data;
+
+    buildTree(data);
+
+});
+
+</script>
+
+</body>
+</html>
