@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>维修工时评估</title>
+<style>
+:root { --bg-dark:#0a0e17; --text-main:#e2e8f0; --text-muted:#94a3b8; --accent-cyan:#22d3ee; --accent-blue:#3b82f6; --accent-green:#10b981; }
+* { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',system-ui,sans-serif; }
+body { background:linear-gradient(135deg,#0b0f19 0%,#111827 50%,#071426 100%); color:#e2e8f0; min-height:100vh; padding:2.5rem 1.2rem; }
+.tool-container { max-width:800px; margin:0 auto; }
+.back-btn { display:inline-flex; align-items:center; gap:6px; background:#2563eb; border:none; color:#fff; padding:8px 16px; border-radius:12px; cursor:pointer; font-weight:600; font-size:0.9rem; margin-bottom:1.5rem; }
+.back-btn:hover { background:#1d4ed8; }
+.tool-hero { text-align:center; margin-bottom:2rem; }
+.tool-hero h2 { font-size:2.2rem; font-weight:800; background:linear-gradient(135deg,#38bdf8,#0ea5e9,#6366f1); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.t-card { background:rgba(30,41,59,0.45); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border-radius:24px; border:1px solid rgba(255,255,255,0.06); box-shadow:0 20px 40px rgba(0,0,0,0.3); padding:2rem; margin-bottom:1.5rem; }
+.t-card-title { font-size:1.15rem; font-weight:700; margin-bottom:1.5rem; color:#f8fafc; display:flex; align-items:center; gap:8px; }
+.t-card-title::before { content:''; display:inline-block; width:4px; height:18px; background:linear-gradient(to bottom,#38bdf8,#6366f1); border-radius:4px; }
+.grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+.form-group { display:flex; flex-direction:column; gap:0.5rem; }
+.form-group label { font-weight:600; font-size:0.85rem; color:#38bdf8; }
+select, input[type="number"] { background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.8rem 1rem; font-size:0.95rem; color:#f1f5f9; outline:none; width:100%; }
+select:focus, input:focus { border-color:#38bdf8; }
+select option { background:#1e293b; color:#f1f5f9; }
+.slider-panel { background:rgba(15,23,42,0.4); border-radius:16px; padding:1.2rem; margin-top:0.5rem; }
+.flex-between { display:flex; justify-content:space-between; align-items:center; }
+.staffValueSpan { background:linear-gradient(135deg,#0ea5e9,#2563eb); padding:4px 14px; border-radius:20px; color:#fff; font-weight:700; font-size:0.9rem; }
+input[type="range"] { width:100%; margin:1rem 0; -webkit-appearance:none; background:rgba(255,255,255,0.1); height:6px; border-radius:10px; outline:none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; background:#38bdf8; border-radius:50%; cursor:pointer; border:3px solid #fff; }
+.big-result-card { background:linear-gradient(135deg,rgba(15,23,42,0.6),rgba(30,41,59,0.6)); border-radius:20px; padding:1.8rem; display:flex; justify-content:space-between; align-items:center; gap:1.5rem; border:1px solid rgba(56,189,248,0.25); }
+.big-item { flex:1; text-align:center; position:relative; }
+.big-item:not(:last-child)::after { content:''; position:absolute; right:-0.75rem; top:20%; height:60%; width:1px; background:rgba(255,255,255,0.08); }
+.big-number { font-size:2.5rem; font-weight:800; line-height:1.2; }
+.color-blue { color:#38bdf8; }
+.color-green { color:#4ade80; }
+.big-label { font-size:0.85rem; font-weight:600; color:#94a3b8; margin-top:0.5rem; }
+.warning-msg { background:rgba(239,68,68,0.12); border-left:4px solid #ef4444; padding:0.8rem 1.2rem; border-radius:12px; font-size:0.85rem; margin-top:1.2rem; color:#fca5a5; }
+.remark-note { background:rgba(15,23,42,0.25); padding:1.2rem; border-radius:16px; font-size:0.85rem; color:#94a3b8; margin-top:1.5rem; line-height:1.7; }
+.remark-title { color:#e2e8f0; font-weight:700; margin-bottom:0.4rem; }
+.remark-note ol { padding-left:1.2rem; }
+.remark-note li { margin-bottom:0.3rem; }
+@media (max-width:768px) { .grid-2col { grid-template-columns:1fr; } .big-result-card { flex-direction:column; } .big-item:not(:last-child)::after { display:none; } }
+</style>
+</head>
+<body>
+
+<div class="tool-container">
+  <button class="back-btn" onclick="window.parent.postMessage('closeTool', '*')">返回填单大厅</button>
+  <div class="tool-hero"><h2>维修人力工时评估</h2></div>
+
+  <div class="t-card">
+    <div class="t-card-title">⚙️ 基础配置</div>
+    <div class="grid-2col">
+      <div class="form-group">
+        <label>📌 模组点间距</label>
+        <select id="repairPitchSelect">
+          <option value="p1_below">P1.0以下</option>
+          <option value="p1_p2" selected>P1.0-P2.0</option>
+          <option value="p2_p3">P2.0-P3.0</option>
+          <option value="p3_p4">P3.0-P4.0</option>
+          <option value="p4_above">P4以上</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>🌦️ 户内/户外</label>
+        <select id="repairEnvType">
+          <option value="indoor" selected>户内</option>
+          <option value="outdoor">户外</option>
+        </select>
+      </div>
+    </div>
+    <div class="t-card-title" style="margin-top:1.8rem;">🧩 维修规模</div>
+    <div class="form-group">
+      <label>🧮 待维修模组总数量 (个)</label>
+      <input type="number" id="repairModuleCount" value="150" step="10" min="0">
+    </div>
+    <div class="t-card-title" style="margin-top:1.8rem;">👥 人员定制</div>
+    <div class="slider-panel">
+      <div class="flex-between"><span></span><span id="repairCurrentStaffValue" class="staffValueSpan">0 人</span></div>
+      <input type="range" id="repairStaffSlider" min="1" max="10" step="1" value="1">
+      <div class="flex-between" style="font-size:0.85rem;margin-top:4px;"><span></span><span id="repairRecommendHint" style="color:#38bdf8;font-weight:600;">⭐ 推荐配置: 1名维修员 + 1名工程师</span><span></span></div>
+    </div>
+  </div>
+
+  <div class="t-card">
+    <div class="t-card-title">📊 维修工时预算结果</div>
+    <div id="repairWarningMsg" class="warning-msg" style="display:none;margin-bottom:1.5rem;"></div>
+    <div class="big-result-card" id="repairResultCard">
+      <div class="big-item"><div class="big-number color-blue" id="repairFinalStaff">1 维修员<br><span style="font-size:1.1rem;color:#94a3b8;">+ 1 工程师</span></div><div class="big-label">🧑‍🔧 实际调配人力</div></div>
+      <div class="big-item"><div class="big-number color-green" id="repairFinalDays">0.0</div><div class="big-label">📅 预估维修总工期 (天)</div></div>
+    </div>
+    <div class="remark-note">
+      <div class="remark-title">💡 评估说明：</div>
+      <ol>
+        <li><strong>人员效能基准：</strong>维修人员平均每日作业饱和度按户内 50 个模组、户外 30 个模组进行科学计算。</li>
+        <li><strong>工期换算公式：</strong>总工期 = 待修模组数 ÷ (实际调配维修员人数 × 每日修件基准值)。工程师负责现场沟通与维修辅助。</li>
+        <li>工期计算结果采取半天（0.5天）向上取整，以便于现场派驻差旅排程。</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+let repairLastCount = -1;
+function computeMaintenance(triggeredBySlider = false) {
+  const pitch = document.getElementById('repairPitchSelect').value;
+  const envSelect = document.getElementById('repairEnvType'); let env = envSelect.value;
+  let count = parseInt(document.getElementById('repairModuleCount').value) || 0; if (count < 0) count = 0;
+  const warnDiv = document.getElementById('repairWarningMsg'), finalStaffDiv = document.getElementById('repairFinalStaff'), finalDaysDiv = document.getElementById('repairFinalDays'), recommendHint = document.getElementById('repairRecommendHint'), slider = document.getElementById('repairStaffSlider'), currentStaffValue = document.getElementById('repairCurrentStaffValue'), resultCard = document.getElementById('repairResultCard');
+ if (pitch === 'p1_p2' || pitch === 'p1_below') { 
+    envSelect.value = 'indoor'; 
+    envSelect.disabled = true; 
+    env = 'indoor'; 
+} else { envSelect.disabled = false; }
+  if (pitch === 'p1_below') { warnDiv.style.display='block'; warnDiv.innerHTML='❌ <strong>无法评估：</strong>P1.0以下精细模组现场暂不具备维修条件，请走返厂维修流程。'; resultCard.style.display='none'; recommendHint.innerText='推荐配置: 无法提供'; currentStaffValue.innerText='— 人'; return; }
+  if (count > 2000) { warnDiv.style.display='block'; warnDiv.innerHTML=`⚠️ <strong>规模超限：</strong>维修数量达到 ${count} 个已超出常规派驻负荷，不进行自动化工时换算，请直接对接技术部单独制定维修方案。`; resultCard.style.display='none'; recommendHint.innerText='推荐配置: 需人工审核'; currentStaffValue.innerText='— 人'; return; }
+  warnDiv.style.display='none'; resultCard.style.display='flex';
+  let baseTech = 0, baseEng = 1;
+  if (count <= 200) baseTech = 1; else if (count <= 600) baseTech = 2; else if (count <= 1000) baseTech = 3; else if (count <= 1500) baseTech = 4; else if (count <= 2000) baseTech = 5;
+  recommendHint.innerText = `⭐ 推荐配置: ${baseTech}名维修员 + ${baseEng}名工程师`;
+  let minStaff = Math.max(1, Math.round(baseTech * 0.6)), maxStaff = Math.max(minStaff+1, Math.round(baseTech * 1.5));
+  slider.min = minStaff; slider.max = maxStaff;
+  if (!triggeredBySlider || count !== repairLastCount) { if (!triggeredBySlider) slider.value = baseTech; repairLastCount = count; }
+  const actualTech = parseInt(slider.value); currentStaffValue.innerText = actualTech + " 人";
+  const engineerCount = 1;              // 目前固定配1名工程师（与baseEng一致）
+const effectiveTech = actualTech + 0.5 * engineerCount;   // 工程师折算为0.5个维修员
+const ratePerDay = (env === 'indoor') ? 50 : 40;
+const totalCapacityPerDay = effectiveTech * ratePerDay;
+  let calcDays = 0;
+  if (totalCapacityPerDay > 0 && count > 0) { calcDays = Math.ceil((count / totalCapacityPerDay) * 2) / 2; }
+  finalStaffDiv.innerHTML = `${actualTech} 维修员 <br><span style="font-size:1.1rem; color:#94a3b8;">+ ${baseEng} 工程师</span>`;
+  finalDaysDiv.innerText = calcDays.toFixed(1);
+}
+['repairPitchSelect','repairEnvType','repairModuleCount'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) { el.addEventListener('change', () => computeMaintenance(false)); if (id === 'repairModuleCount') el.addEventListener('input', () => computeMaintenance(false)); }
+});
+document.getElementById('repairStaffSlider').addEventListener('input', () => computeMaintenance(true));
+window.addEventListener('DOMContentLoaded', () => computeMaintenance(false));
+</script>
+</body>
+</html>

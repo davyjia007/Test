@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>技术支持填单</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  min-height: 100vh; padding: 30px 20px;
+  background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+  background-size: 200% 200%; animation: bgMove 12s ease infinite;
+  color: #333; overflow-x: hidden;
+}
+@keyframes bgMove {
+  0% { background-position: 0% 50% }
+  50% { background-position: 100% 50% }
+  100% { background-position: 0% 50% }
+}
+.header {
+  max-width: 520px; margin: auto auto 25px;
+  background: rgba(255,255,255,0.75); backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); border-radius: 14px;
+  padding: 30px 20px; position: relative;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+h1 {
+  text-align: center; font-size: 26px; font-weight: 700;
+  background: linear-gradient(90deg, #ff7eb3, #667eea);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.logo {
+  position: absolute; right: 20px; top: 50%;
+  transform: translateY(-50%); height: 65px; mix-blend-mode: multiply;
+}
+.container { max-width: 520px; margin: auto; }
+.category {
+  padding: 16px 18px; font-size: 18px; font-weight: 600;
+  color: white; border-radius: 12px 12px 0 0; margin-top: 20px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+}
+.category-0 { background: linear-gradient(135deg, #a8ff78, #78ffd6); color: #22543d; }
+.category-1 { background: linear-gradient(135deg, #ff6b6b, #ff8787); }
+.category-2 { background: linear-gradient(135deg, #4ecdc4, #44a08d); }
+.category-3 { background: linear-gradient(135deg, #a8edea, #fed6e3); color: #444; }
+.items { background: white; border-radius: 0 0 12px 12px; overflow: hidden; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+.item {
+  padding: 15px; text-align: center; border-bottom: 1px solid #eee;
+  cursor: pointer; font-weight: 500; transition: all .25s ease;
+}
+.item:hover { background: linear-gradient(135deg, #667eea, #764ba2); color: white; transform: translateX(6px); }
+.item:last-child { border-bottom: none; }
+.guide { display: flex; justify-content: center; gap: 18px; margin-top: 40px; flex-wrap: wrap; }
+.guide a {
+  flex: 1; max-width: 220px; text-align: center; padding: 14px 18px;
+  border-radius: 12px; font-weight: 600; text-decoration: none; color: white;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2); transition: all .25s ease;
+}
+.guide a:first-child { background: linear-gradient(135deg, #667eea, #5a67d8); }
+.guide a:last-child { background: linear-gradient(135deg, #ff9a44, #ff6a00); }
+.guide a:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+
+/* iframe 全屏遮罩 */
+.iframe-overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: 9999; border: none; display: none;
+}
+.iframe-overlay.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>技术支持填单</h1>
+  <img src="ROE%20LOGO_RGB%20(white%20bkgd).jpg" class="logo" alt="ROE Logo">
+</div>
+
+<div class="container" id="container"></div>
+
+<div class="guide">
+  <a href="ASAP工单录入说明.pdf" target="_blank">📘 工单录入指引</a>
+  <a href="ASAP维修记录录入说明V2.0.pdf" target="_blank">🔧 维修录入指引</a>
+</div>
+
+<iframe id="toolIframe" class="iframe-overlay"></iframe>
+
+<script>
+const data = [
+  {
+    category: "工时物料评估",
+    items: [
+      { name: "安装工时评估", src: "install-tool.html" },
+      { name: "维修工时评估", src: "repair-tool.html" },
+      { name: "备品物料清单", src: "spare-tool.html" }
+    ]
+  },
+  {
+    category: "技术支持填单",
+    items: [
+      { name: "项目现场出差", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_027f19" },
+      { name: "验货展厅参观", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_856c0a" },
+      { name: "适刻项目更新", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_c53da0" }
+    ]
+  },
+  {
+    category: "维修表单填单",
+    items: [
+      { name: "常规维修填单", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_ebffa4" },
+      { name: "日办维修填单", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_2ebeef" },
+      { name: "坐标维修填单", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_1d4c61" }
+    ]
+  },
+  {
+    category: "反馈建议填单",
+    items: [
+      { name: "产品投诉反馈", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_adcca9" },
+      { name: "产品建议反馈", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_c2f57d" },
+      { name: "技术分享交流", url: "https://doc.weixin.qq.com/smartsheet/form/1_wpqQoHBgAAwWgvhlAEc-HwEE4j_NPIMA_da73e2" }
+    ]
+  }
+];
+
+const container = document.getElementById("container");
+const iframe = document.getElementById("toolIframe");
+
+data.forEach((cat, index) => {
+  const catDiv = document.createElement("div");
+  catDiv.className = "category category-" + index;
+  catDiv.textContent = cat.category;
+
+  const itemsDiv = document.createElement("div");
+  itemsDiv.className = "items";
+
+  cat.items.forEach(item => {
+    const itemDiv = document.createElement("div");
+    itemDiv.className = "item";
+    itemDiv.textContent = item.name;
+    itemDiv.onclick = () => {
+      if (item.src) {
+        iframe.src = item.src;
+        iframe.classList.add("active");
+      } else {
+        window.open(item.url, "_blank");
+      }
+    };
+    itemsDiv.appendChild(itemDiv);
+  });
+
+  container.appendChild(catDiv);
+  container.appendChild(itemsDiv);
+});
+
+// 监听子页面返回消息
+window.addEventListener("message", (e) => {
+  if (e.data === "closeTool") {
+    iframe.classList.remove("active");
+    iframe.src = "";
+  }
+});
+</script>
+</body>
+</html>

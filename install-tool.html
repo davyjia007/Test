@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>安装工时评估</title>
+<style>
+:root {
+  --bg-dark: #0a0e17; --panel-bg: rgba(16,24,39,.85);
+  --text-main: #e2e8f0; --text-muted: #94a3b8;
+  --accent-cyan: #22d3ee; --accent-blue: #3b82f6;
+  --accent-green: #10b981; --accent-orange: #f59e0b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+body {
+  background: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #071426 100%);
+  color: #e2e8f0; min-height: 100vh; padding: 2.5rem 1.2rem;
+}
+.tool-container { max-width: 800px; margin: 0 auto; }
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #2563eb; border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; padding: 8px 16px; border-radius: 12px;
+  cursor: pointer; font-weight: 600; font-size: 0.9rem; margin-bottom: 1.5rem;
+  transition: all 0.2s; border: none;
+}
+.back-btn:hover { background: #1d4ed8; }
+.tool-hero { text-align: center; margin-bottom: 2rem; }
+.tool-hero h2 {
+  font-size: 2.2rem; font-weight: 800; letter-spacing: 1px;
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9, #6366f1);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.t-card {
+  background: rgba(30,41,59,0.45); backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px); border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3); padding: 2rem; margin-bottom: 1.5rem;
+}
+.t-card-title {
+  font-size: 1.15rem; font-weight: 700; margin-bottom: 1.5rem; color: #f8fafc;
+  display: flex; align-items: center; gap: 8px;
+}
+.t-card-title::before {
+  content: ''; display: inline-block; width: 4px; height: 18px;
+  background: linear-gradient(to bottom, #38bdf8, #6366f1); border-radius: 4px;
+}
+.grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.form-group label { font-weight: 600; font-size: 0.85rem; color: #38bdf8; }
+select, input[type="number"] {
+  background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; padding: 0.8rem 1rem; font-size: 0.95rem; font-weight: 500;
+  color: #f1f5f9; outline: none; width: 100%; transition: all 0.2s;
+}
+select:focus, input:focus { border-color: #38bdf8; background: rgba(15,23,42,0.8); }
+select option { background: #1e293b; color: #f1f5f9; }
+.badge-container { margin-top: 1.2rem; }
+.badge {
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25);
+  border-radius: 12px; padding: 0.6rem 1.2rem; font-size: 0.85rem; color: #e2e8f0; display: inline-block;
+}
+.badge strong { color: #818cf8; font-size: 1.05rem; margin: 0 2px; }
+.coeff-group { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; }
+.coeff-item {
+  background: rgba(15,23,42,0.4); padding: 0.6rem 1.2rem; border-radius: 14px;
+  display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer;
+}
+.coeff-item input[type="checkbox"] { accent-color: #38bdf8; width: 16px; height: 16px; }
+.coeff-item label { font-size: 0.85rem; color: #94a3b8; cursor: pointer; }
+.slider-panel {
+  background: rgba(15,23,42,0.4); border-radius: 16px; padding: 1.2rem; margin-top: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.staffValueSpan {
+  background: linear-gradient(135deg, #0ea5e9, #2563eb); padding: 4px 14px;
+  border-radius: 20px; color: #fff; font-weight: 700; font-size: 0.9rem;
+}
+input[type="range"] {
+  width: 100%; margin: 1rem 0; -webkit-appearance: none;
+  background: rgba(255,255,255,0.1); height: 6px; border-radius: 10px; outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 20px; height: 20px; background: #38bdf8;
+  border-radius: 50%; cursor: pointer; border: 3px solid #fff;
+}
+.big-result-card {
+  background: linear-gradient(135deg, rgba(15,23,42,0.6) 0%, rgba(30,41,59,0.6) 100%);
+  border-radius: 20px; padding: 1.8rem; display: flex; justify-content: space-between;
+  align-items: center; gap: 1.5rem; border: 1px solid rgba(56,189,248,0.25);
+}
+.big-item { flex: 1; text-align: center; position: relative; }
+.big-item:not(:last-child)::after {
+  content: ''; position: absolute; right: -0.75rem; top: 20%; height: 60%;
+  width: 1px; background: rgba(255,255,255,0.08);
+}
+.big-number { font-size: 2.5rem; font-weight: 800; line-height: 1.2; }
+.color-blue { color: #38bdf8; text-shadow: 0 0 20px rgba(56,189,248,0.3); }
+.color-green { color: #4ade80; text-shadow: 0 0 20px rgba(74,222,128,0.3); }
+.big-label { font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-top: 0.5rem; }
+.warning-msg {
+  background: rgba(239,68,68,0.12); border-left: 4px solid #ef4444;
+  padding: 0.8rem 1.2rem; border-radius: 12px; font-size: 0.85rem;
+  margin-top: 1.2rem; color: #fca5a5; line-height: 1.5;
+}
+.remark-note {
+  background: rgba(15,23,42,0.25); padding: 1.2rem; border-radius: 16px;
+  font-size: 0.85rem; color: #94a3b8; margin-top: 1.5rem; line-height: 1.7;
+  border: 1px solid rgba(255,255,255,0.02);
+}
+.remark-title { color: #e2e8f0; font-weight: 700; margin-bottom: 0.4rem; }
+.remark-note ol { padding-left: 1.2rem; }
+.remark-note li { margin-bottom: 0.3rem; }
+@media (max-width: 768px) {
+  .grid-2col { grid-template-columns: 1fr; }
+  .big-result-card { flex-direction: column; padding: 1.2rem; }
+  .big-item:not(:last-child)::after { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="tool-container">
+  <button class="back-btn" onclick="window.parent.postMessage('closeTool', '*')">返回填单大厅</button>
+  <div class="tool-hero"><h2>安装人力工时评估</h2></div>
+
+  <div class="t-card">
+    <div class="t-card-title">⚙️ 基础配置</div>
+    <div class="grid-2col">
+      <div class="form-group">
+        <label>📌 点间距</label>
+        <select id="pitchSelect">
+          <option value="p1_below">P1.0以下</option>
+          <option value="p1_p2" selected>P1.0-P2.0</option>
+          <option value="p2_p3">P2.0-P3.0</option>
+          <option value="p3_p4">P3.0-P4.0</option>
+          <option value="p4_above">P4以上</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>🛠️ 安装方式</label>
+        <select id="installMethod">
+          <option value="hoist">吊装</option>
+          <option value="seat">坐装</option>
+          <option value="wall">壁挂</option>
+        </select>
+      </div>
+    </div>
+    <div class="t-card-title" style="margin-top:1.8rem;">📐 屏体面积</div>
+    <div class="grid-2col">
+      <div class="form-group">
+        <label>✅ 标准屏体总面积 (㎡)</label>
+        <input type="number" id="stdArea" value="38" step="0.5" min="0">
+      </div>
+      <div class="form-group">
+        <label>🌀 仅填非标/弧形屏体面积 (㎡)</label>
+        <input type="number" id="nonStdArea" value="0" step="0.5" min="0">
+      </div>
+    </div>
+    <div class="badge-container">
+      <div class="badge">📐 等效面积：<strong id="equivAreaSpan">0.0</strong> ㎡</div>
+    </div>
+    <div id="installCalcPanel">
+      <div class="coeff-group">
+        <div class="coeff-item">
+          <input type="checkbox" id="highAltitude">
+          <label for="highAltitude">⛰️ 高空作业（≥5米）</label>
+        </div>
+        <div class="coeff-item">
+          <input type="checkbox" id="logistics">
+          <label for="logistics">📦 卸货/场内转运</label>
+        </div>
+      </div>
+      <div class="t-card-title" style="margin-top:1.8rem;">👥 人员定制</div>
+      <div class="slider-panel">
+        <div class="flex-between">
+          <span></span>
+          <span id="currentStaffValue" class="staffValueSpan">0 人</span>
+        </div>
+        <input type="range" id="staffSlider" min="1" max="50" step="1" value="1">
+        <div class="flex-between" style="margin-top:4px;">
+          <span></span>
+          <span id="optimalStaffHint" style="color:#38bdf8;font-weight:600;">⭐ 推荐人数: - 人</span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="t-card">
+    <div class="t-card-title">📊 人力工时预估</div>
+    <div style="display:none;"><span id="basePeople">—</span><span id="baseDays">—</span></div>
+    <div id="warningMsg" class="warning-msg" style="display:none;margin-bottom:1.5rem;"></div>
+    <div class="big-result-card" id="installResultCard">
+      <div class="big-item">
+        <div class="big-number color-blue" id="finalPeople">0</div>
+        <div class="big-label">🧑‍🔧 最终配置人数</div>
+      </div>
+      <div class="big-item">
+        <div class="big-number color-green" id="finalDays">0.0</div>
+        <div class="big-label">📅 预估工期 (天)</div>
+      </div>
+    </div>
+    <div class="remark-note">
+      <div class="remark-title">💡 备注说明：</div>
+      <ol>
+        <li>本费用仅为初步预估，现场施工须安排具备实操经验的专业工程师执行；</li>
+        <li>项目涉及高空作业、货物卸货等特殊作业，请勾选对应项目予以确认；</li>
+        <li>本次计价包含屏体拼装、线路连接、设备初步点亮调试，不含钢结构制作安装、强电布线、土建施工及屏幕精调校正等相关工程内容。</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+const MATRIX_RAW = {
+  p1_below: [[0,2,1,0.5,1,0.5,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,3,1.5,5,2.0,5,3.0],[12,16,5,3.0,5,4.5,6,4.5],[16,20,5,3.0,6,4.5,6,6.0],[20,25,5,4.5,6,4.5,8,6.0],[25,30,6,4.5,8,6.0,8,7.5],[30,40,6,4.5,8,6.0,9,7.5],[40,50,8,4.5,9,6.0,11,7.5],[50,55,8,6.0,9,7.5,11,9.0],[55,60,8,6.0,11,7.5,12,9.0],[60,65,9,6.0,11,7.5,12,10.5],[65,70,9,6.0,11,9.0,14,10.5],[70,75,9,7.5,12,9.0,14,12.0],[75,80,11,7.5,12,9.0,15,12.0],[80,85,11,7.5,14,10.5,15,13.5],[85,90,11,9.0,14,10.5,17,13.5],[90,95,12,9.0,15,10.5,17,15.0],[95,100,12,9.0,15,12.0,18,15.0],[100,120,14,10.5,17,13.5,20,16.5],[120,140,15,10.5,18,13.5,21,16.5],[140,160,15,12.0,20,15.0,23,18.0],[160,180,17,12.0,21,15.0,24,19.5],[180,200,18,13.5,23,16.5,26,21.0]],
+  p1_p2: [[0,2,1,0.5,1,1.0,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,3,2.0],[12,16,5,1.0,5,1.5,4,3.0],[16,20,5,1.0,6,1.5,4,4.0],[20,25,5,1.5,6,1.5,5,4.0],[25,30,6,1.5,8,2.0,5,5.0],[30,40,6,1.5,8,2.0,6,5.0],[40,50,8,1.5,9,2.0,7,5.0],[50,55,8,2.0,9,2.5,7,6.0],[55,60,8,2.0,11,2.5,8,6.0],[60,65,9,2.0,11,2.5,8,7.0],[65,70,9,2.0,11,3.0,9,7.0],[70,75,9,2.5,12,3.0,9,8.0],[75,80,11,2.5,12,3.0,10,8.0],[80,85,11,2.5,14,3.5,10,9.0],[85,90,11,3.0,14,3.5,11,9.0],[90,95,12,3.0,15,3.5,11,10.0],[95,100,12,3.0,15,4.0,12,10.0],[100,120,14,3.5,17,4.5,13,11.0],[120,140,16,3.5,19,4.5,14,11.0],[140,160,18,4.0,21,5.0,15,12.0],[160,180,20,4.0,23,5.0,16,13.0],[180,200,22,4.5,25,5.5,17,14.0],[200,260,24,4.5,27,6.0,18,15.0],[260,320,26,5.0,29,6.0,19,16.0],[320,380,28,5.0,31,6.5,20,17.0],[380,440,30,5.5,33,6.5,21,18.0],[440,500,32,5.5,35,7.0,22,19.0]],
+  p2_p3: [[0,2,1,0.5,1,1.0,1,1.0],[2,5,1,1.0,1,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,2,1.5],[12,16,3,1.0,3,1.5,3,2.5],[16,20,3,1.0,5,1.5,3,3.0],[20,25,3,1.5,5,1.5,4,3.0],[25,30,5,1.5,6,1.5,4,4.0],[30,40,5,1.5,6,1.5,5,4.0],[40,50,6,1.5,8,1.5,6,4.0],[50,55,6,1.5,8,2.0,6,5.0],[55,60,6,1.5,9,2.0,6,5.0],[60,65,8,1.5,9,2.0,6,5.5],[65,70,8,1.5,9,2.5,7,5.5],[70,75,8,2.0,9,2.5,7,6.5],[75,80,9,2.0,9,2.5,8,6.5],[80,85,9,2.0,11,3.0,8,7.0],[85,90,9,2.5,11,3.0,9,7.0],[90,95,9,2.5,12,3.0,9,8.0],[95,100,9,2.5,12,3.5,10,8.0],[100,120,11,3.0,14,3.5,10,9.0],[120,140,12,3.0,15,3.5,11,9.0],[140,160,12,3.5,15,4.0,12,9.5],[160,180,14,3.5,17,4.0,13,10.5],[180,200,15,3.5,18,4.5,14,11.0],[200,260,15,3.5,20,5.0,14,12.0],[260,320,17,4.0,21,5.0,15,13.0],[320,380,18,4.0,21,5.5,16,13.5],[380,440,20,4.5,23,5.5,17,14.5],[440,500,21,4.5,24,6.0,18,15.0],[500,560,21,5.0,26,6.0,18,16.0],[560,620,23,5.0,27,6.0,19,17.0],[620,680,24,5.5,27,6.5,20,17.5],[680,740,26,5.5,29,6.5,21,18.5],[740,800,27,5.5,30,7.0,22,19.0]],
+  p3_p4: [[0,2,1,0.5,1,1.0,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,3,2.0],[12,16,3,0.5,5,1.0,4,2.5],[16,20,3,0.5,5,1.0,4,3.0],[20,25,5,1.0,5,1.5,5,3.5],[25,30,5,1.0,6,1.5,5,3.5],[30,40,5,1.0,6,1.5,6,3.5],[40,50,6,1.0,6,1.5,7,3.5],[50,55,6,1.0,8,1.5,8,4.0],[55,60,6,1.5,8,2.0,8,4.5],[60,65,8,1.5,9,2.0,9,5.0],[65,70,8,1.5,9,2.0,10,5.0],[70,75,8,1.5,11,2.0,10,5.5],[75,80,9,1.5,11,2.0,11,5.5],[80,85,9,1.5,11,2.0,11,6.0],[85,90,9,1.5,12,2.0,12,6.0],[90,95,9,1.5,12,2.0,12,6.0],[95,100,9,1.5,12,2.0,12,6.0],[100,120,11,2.0,14,2.5,13,6.5],[120,140,11,2.0,15,2.5,14,7.0],[140,160,12,2.0,17,2.5,15,7.5],[160,180,12,2.5,18,2.5,16,8.0],[180,200,14,2.5,18,3.0,17,8.5],[200,260,14,2.5,20,3.0,18,9.0],[260,320,14,2.5,21,3.0,19,9.0],[320,380,15,3.0,23,3.0,20,9.5],[380,440,15,3.0,23,3.0,21,10.0],[440,500,15,3.0,24,3.0,22,10.5],[500,560,18,3.5,27,3.5,24,11.5],[560,620,20,3.5,30,4.0,26,12.5],[620,680,21,4.0,31,4.0,28,13.5],[680,740,24,4.5,34,4.5,30,14.5],[740,800,27,4.5,36,5.0,32,15.0],[800,900,29,5.0,38,5.5,33,15.5],[900,1000,31,5.0,40,6.0,33,16.0]],
+  p4_above: [[0,2,1,0.5,1,1.0,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,3,2.0],[12,16,3,0.5,5,1.0,4,2.5],[16,20,3,0.5,5,1.0,4,3.0],[20,25,5,1.0,5,1.5,5,3.0],[25,30,5,1.0,6,1.5,5,3.0],[30,40,5,1.0,6,1.5,5,3.0],[40,50,6,1.0,6,1.5,6,3.0],[50,55,6,1.0,8,1.5,7,3.5],[55,60,6,1.0,8,1.5,7,4.0],[60,65,8,1.0,8,1.5,8,4.5],[65,70,8,1.0,8,1.5,9,4.5],[70,75,8,1.5,9,2.0,9,5.0],[75,80,8,1.5,9,2.0,10,5.0],[80,85,8,1.5,9,2.0,10,5.5],[85,90,8,1.5,11,2.0,11,5.5],[90,95,8,1.5,11,2.0,11,5.5],[95,100,8,1.5,11,2.0,11,5.5],[100,120,9,1.5,12,2.0,12,6.0],[120,140,9,1.5,12,2.0,13,6.5],[140,160,11,2.0,14,2.5,14,7.0],[160,180,11,2.0,15,2.5,14,7.0],[180,200,12,2.0,17,2.5,15,7.5],[200,260,12,2.5,18,2.5,16,8.0],[260,320,14,2.5,18,3.0,17,8.0],[320,380,14,2.5,20,3.0,18,8.5],[380,440,14,2.5,21,3.0,19,9.0],[440,500,15,3.0,23,3.0,20,9.5],[500,560,15,3.0,23,3.0,22,10.5],[560,620,15,3.0,24,3.0,23,11.0],[620,680,18,3.5,27,3.5,25,12.0],[680,740,20,3.5,30,4.0,27,13.0],[740,800,21,4.0,31,4.0,29,13.5],[800,900,24,4.5,34,4.5,30,14.0],[900,1000,27,4.5,36,5.0,30,14.5]]
+};
+const DB = {};
+function buildDB() {
+  for (let [pitch, rows] of Object.entries(MATRIX_RAW)) {
+    DB[pitch] = [];
+    for (let r of rows) {
+      let [minA, maxA, hP, hD, sP, sD, wP, wD] = r;
+      DB[pitch].push({ min: minA, max: maxA, hoist: { p: hP, d: hD }, seat: { p: sP, d: sD }, wall: { p: wP, d: wD } });
+    }
+  }
+}
+buildDB();
+
+function findMatch(pitchKey, area) {
+  const arr = DB[pitchKey]; if (!arr) return null;
+  for (let seg of arr) { if (area >= seg.min && area <= seg.max) return seg; }
+  if (area > arr[arr.length-1].max) return arr[arr.length-1];
+  if (area < arr[0].min) return arr[0]; return null;
+}
+function getPitchLimit(pitchKey) {
+  return { p1_below:200, p1_p2:500, p2_p3:800, p3_p4:1000, p4_above:1000 }[pitchKey];
+}
+
+function computeAll(triggeredBySlider = false) {
+  const pitchKey = document.getElementById('pitchSelect').value;
+  const installMethod = document.getElementById('installMethod').value;
+  let std = parseFloat(document.getElementById('stdArea').value) || 0;
+  let nonStd = parseFloat(document.getElementById('nonStdArea').value) || 0;
+  if (std < 0) std = 0; if (nonStd < 0) nonStd = 0;
+  const equivArea = std + (nonStd * 2.0);
+  document.getElementById('equivAreaSpan').innerText = equivArea.toFixed(1);
+  const limit = getPitchLimit(pitchKey);
+  const warnDiv = document.getElementById('warningMsg');
+  const calcPanel = document.getElementById('installCalcPanel');
+  const resultCard = document.getElementById('installResultCard');
+  if (equivArea > limit) {
+    warnDiv.style.display = 'block';
+    warnDiv.innerHTML = `⚠️ <strong>规模超限：</strong>等效面积 ${equivArea.toFixed(1)}㎡ 已超过设计上限 ${limit}㎡，不显示推荐人力，请直接对接技术部单独制定安装方案。`;
+    calcPanel.style.display = 'none'; resultCard.style.display = 'none'; return;
+  } else {
+    warnDiv.style.display = 'none'; calcPanel.style.display = 'block'; resultCard.style.display = 'flex';
+  }
+  const matched = findMatch(pitchKey, equivArea); if (!matched) return;
+  let mp, md;
+  if (installMethod === 'hoist') { mp = matched.hoist.p; md = matched.hoist.d; }
+  else if (installMethod === 'seat') { mp = matched.seat.p; md = matched.seat.d; }
+  else { mp = matched.wall.p; md = matched.wall.d; }
+  let basePeople = mp; let baseDays = md;
+  if (document.getElementById('highAltitude').checked) basePeople *= 1.5;
+  if (document.getElementById('logistics').checked) basePeople *= 1.3;
+  basePeople = Math.ceil(basePeople);
+  document.getElementById('basePeople').innerText = basePeople;
+  document.getElementById('baseDays').innerText = baseDays.toFixed(1);
+  const slider = document.getElementById('staffSlider');
+  let minStaff = Math.max(1, Math.floor(basePeople * 0.5));
+  let maxStaff = Math.max(minStaff+1, Math.ceil(basePeople * 3));
+  maxStaff = Math.min(maxStaff, 50);
+  slider.min = minStaff; slider.max = maxStaff;
+  if (!triggeredBySlider) { slider.value = basePeople; }
+  else { let cur = parseInt(slider.value); if (cur < minStaff) slider.value = minStaff; if (cur > maxStaff) slider.value = maxStaff; }
+  document.getElementById('currentStaffValue').innerText = slider.value + " 人";
+  document.getElementById('optimalStaffHint').innerHTML = `⭐ 推荐人数: ${basePeople} 人`;
+  const finalPeople = parseInt(slider.value);
+  let finalDays = 0;
+  if (finalPeople === basePeople) { finalDays = baseDays; }
+  else { finalDays = Math.ceil((basePeople * baseDays / finalPeople) * 2) / 2; }
+  document.getElementById('finalPeople').innerText = finalPeople;
+  document.getElementById('finalDays').innerText = finalDays.toFixed(1);
+}
+
+['pitchSelect','installMethod','stdArea','nonStdArea','highAltitude','logistics'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('change', () => computeAll(false));
+    if (id === 'stdArea' || id === 'nonStdArea') el.addEventListener('input', () => computeAll(false));
+  }
+});
+document.getElementById('staffSlider').addEventListener('input', () => computeAll(true));
+window.addEventListener('DOMContentLoaded', () => computeAll(false));
+</script>
+</body>
+</html>

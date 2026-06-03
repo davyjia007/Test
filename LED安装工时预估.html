@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>安装人力工时评估</title>
+<style>
+  /* --- 现代极简风格全局重置 --- */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'SF Pro Display', -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+  }
+  
+  body {
+    background: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #071426 100%);
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 2.5rem 1.2rem;
+    line-height: 1.5;
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  /* --- 头部标题 --- */
+  .hero {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9, #6366f1);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);
+  }
+
+  /* --- 极简玻璃拟态卡片 --- */
+  .card {
+    background: rgba(30, 41, 59, 0.45);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .card-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.5px;
+  }
+  .card-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 18px;
+    background: linear-gradient(to bottom, #38bdf8, #6366f1);
+    border-radius: 4px;
+  }
+
+  /* --- 表单布局 --- */
+  .grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .form-group label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #38bdf8;
+    letter-spacing: 0.5px;
+  }
+
+  select, input[type="number"] {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #f1f5f9;
+    transition: all 0.2s ease;
+    outline: none;
+    width: 100%;
+  }
+  select:focus, input:focus {
+    border-color: #38bdf8;
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+  }
+  select option {
+    background: #1e293b;
+    color: #f1f5f9;
+  }
+
+  /* --- 面积结果标签 --- */
+  .badge-container {
+    margin-top: 1.2rem;
+  }
+  .badge {
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 12px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    display: inline-block;
+  }
+  .badge strong {
+    color: #818cf8;
+    font-size: 1.05rem;
+    margin: 0 2px;
+  }
+
+  /* --- 复选框群组 --- */
+  .coeff-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .coeff-item {
+    background: rgba(15, 23, 42, 0.4);
+    padding: 0.6rem 1.2rem;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+  }
+  .coeff-item:hover {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(56, 189, 248, 0.15);
+  }
+  .coeff-item input[type="checkbox"] {
+    accent-color: #38bdf8;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+  .coeff-item label {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    cursor: pointer;
+  }
+  .coeff-item input:checked + label {
+    color: #f1f5f9;
+  }
+
+  /* --- 人员定制弹性排班 --- */
+  .slider-panel {
+    background: rgba(15, 23, 42, 0.4);
+    border-radius: 16px;
+    padding: 1.2rem;
+    margin-top: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .flex-between span {
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  #currentStaffValue {
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    padding: 4px 14px;
+    border-radius: 20px;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  }
+  
+  input[type="range"] {
+    width: 100%;
+    margin: 1rem 0;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    height: 6px;
+    border-radius: 10px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #38bdf8;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    transition: transform 0.1s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+
+  /* --- 主结果输出看板 --- */
+  .result-area-compact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .result-mini {
+    background: rgba(15, 23, 42, 0.3);
+    border-radius: 16px;
+    padding: 1rem;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .result-mini .num {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+
+  .big-result-card {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.6) 100%);
+    border-radius: 20px;
+    padding: 1.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.05);
+  }
+  .big-item {
+    flex: 1;
+    text-align: center;
+    position: relative;
+  }
+  .big-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: -0.75rem;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .big-number {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  #finalPeople {
+    color: #38bdf8;
+    text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+  }
+  #finalDays {
+    color: #4ade80;
+    text-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+  }
+  .big-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-top: 0.5rem;
+  }
+
+  /* --- 警告与规范备注说明 --- */
+  .warning-msg {
+    background: rgba(239, 68, 68, 0.12);
+    border-left: 4px solid #ef4444;
+    padding: 0.8rem 1.2rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-top: 1.2rem;
+    color: #fca5a5;
+  }
+  .remark-note {
+    background: rgba(15, 23, 42, 0.25);
+    padding: 1.2rem;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 1.5rem;
+    line-height: 1.7;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+  }
+  .remark-title {
+    color: #e2e8f0;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+  .remark-note ol {
+    padding-left: 1.2rem;
+  }
+  .remark-note li {
+    margin-bottom: 0.3rem;
+  }
+
+  /* --- 响应式适配 --- */
+  @media (max-width: 768px) {
+    .grid-2col { grid-template-columns: 1fr; gap: 1rem; }
+    .big-result-card { flex-direction: column; padding: 1.2rem; }
+    .big-item:not(:last-child)::after { display: none; }
+    .big-item { padding: 0.5rem 0; }
+    .card { padding: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="hero">
+    <h1>安装人力工时评估</h1>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚙️ 基础配置</div>
+    <div class="grid-2col">
+      <div class="form-group">
+        <label>📌 点间距</label>
+        <select id="pitchSelect">
+          <option value="p1_below">P1.0以下</option>
+          <option value="p1_p2" selected>P1.0-P2.0</option>
+          <option value="p2_p3">P2.0-P3.0</option>
+          <option value="p3_p4">P3.0-P4.0</option>
+          <option value="p4_above">P4以上</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>🛠️ 安装方式</label>
+        <select id="installMethod">
+          <option value="hoist">吊装</option>
+          <option value="seat">坐装</option>
+          <option value="wall">壁挂</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card-title" style="margin-top:1.8rem;">📐 屏体面积</div>
+    <div class="grid-2col">
+      <div class="form-group">
+        <label>✅ 标准屏体总面积 (㎡)</label>
+        <input type="number" id="stdArea" value="38" step="0.5" min="0">
+      </div>
+      <div class="form-group">
+        <label>🌀 非标准尺寸/弧形屏体总面积 (㎡)</label>
+        <input type="number" id="nonStdArea" value="0" step="0.5" min="0">
+      </div>
+    </div>
+    
+    <div class="badge-container">
+      <div class="badge">📐 等效面积：<strong id="equivAreaSpan">0.0</strong> ㎡</div>
+    </div>
+
+    <div class="coeff-group">
+      <div class="coeff-item">
+        <input type="checkbox" id="highAltitude"> 
+        <label for="highAltitude">⛰️ 高空作业（≥5米）</label>
+      </div>
+      <div class="coeff-item">
+        <input type="checkbox" id="logistics"> 
+        <label for="logistics">📦 卸货/场内转运</label>
+      </div>
+    </div>
+
+    <div class="card-title" style="margin-top:1.8rem;">👥 人员定制</div>
+    <div class="slider-panel">
+      <div class="flex-between">
+        <span style="color: #f8fafc; font-weight:600;">人员调整</span>
+        <span id="currentStaffValue">0 人</span>
+      </div>
+      <input type="range" id="staffSlider" min="1" max="50" step="1" value="1">
+      <div class="flex-between" style="margin-top:4px; justify-content: center;">
+        <span id="optimalStaffHint" style="color:#38bdf8; font-weight: 600;">⭐ 推荐人数: - 人</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 人力工时预估</div>
+    <div class="result-area-compact" style="display:none;">
+      <div class="result-mini"><div class="num" id="basePeople">—</div></div>
+      <div class="result-mini"><div class="num" id="baseDays">—</div></div>
+    </div>
+    
+    <div class="big-result-card">
+      <div class="big-item">
+        <div class="big-number" id="finalPeople">0</div>
+        <div class="big-label">🧑‍🔧 最终配置人数</div>
+      </div>
+      <div class="big-item">
+        <div class="big-number" id="finalDays">0.0</div>
+        <div class="big-label">📅 预估工期 (天)</div>
+      </div>
+    </div>
+    
+    <div id="warningMsg" class="warning-msg" style="display:none;"></div>
+    
+    <div class="remark-note">
+      <div class="remark-title">💡 备注说明：</div>
+      <ol>
+        <li>本费用仅为初步预估，现场施工须安排具备实操经验的专业工程师执行；</li>
+        <li>项目涉及高空作业、货物卸货等特殊作业，请勾选对应项目予以确认；</li>
+        <li>本次计价包含屏体拼装、线路连接、设备初步点亮调试，不含钢结构制作安装、强电布线、土建施工及屏幕精调校正等相关工程内容。</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 矩阵核心逻辑及算法
+// ============================================================
+const MATRIX_RAW = {
+  p1_below: [
+    [0,2,1,0.5,1,0.5,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,3,1.5,5,2.0,5,3.0],
+    [12,16,5,3.0,5,4.5,6,4.5],[16,20,5,3.0,6,4.5,6,6.0],[20,25,5,4.5,6,4.5,8,6.0],[25,30,6,4.5,8,6.0,8,7.5],
+    [30,40,6,4.5,8,6.0,9,7.5],[40,50,8,4.5,9,6.0,11,7.5],[50,55,8,6.0,9,7.5,11,9.0],[55,60,8,6.0,11,7.5,12,9.0],
+    [60,65,9,6.0,11,7.5,12,10.5],[65,70,9,6.0,11,9.0,14,10.5],[70,75,9,7.5,12,9.0,14,12.0],[75,80,11,7.5,12,9.0,15,12.0],
+    [80,85,11,7.5,14,10.5,15,13.5],[85,90,11,9.0,14,10.5,17,13.5],[90,95,12,9.0,15,10.5,17,15.0],[95,100,12,9.0,15,12.0,18,15.0],
+    [100,120,14,10.5,17,13.5,20,16.5],[120,140,15,10.5,18,13.5,21,16.5],[140,160,15,12.0,20,15.0,23,18.0],[160,180,17,12.0,21,15.0,24,19.5],
+    [180,200,18,13.5,23,16.5,26,21.0]
+  ],
+  p1_p2: [
+    [0,2,1,0.5,1,1.0,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,3,2.0],
+    [12,16,3,2,3,3,4,3],[16,20,3,2,4,3,4,4],[20,25,3,3,4,3,5,4],[25,30,4,3,5,4,5,5],
+    [30,40,4,3,5,4,6,5],[40,50,5,3,6,4,7,5],[50,55,5,4,6,5,7,6],[55,60,5,4,7,5,8,6],
+    [60,65,6,4,7,5,8,7],[65,70,6,4,7,6,9,7],[70,75,6,5,8,6,9,8],[75,80,7,5,8,6,10,8],
+    [80,85,7,5,9,7,10,9],[85,90,7,6,9,7,11,9],[90,95,8,6,10,7,11,10],[95,100,8,6,10,8,12,10],
+    [100,120,9,7,11,9,13,11],[120,140,10,7,12,9,14,11],[140,160,10,8,13,10,15,12],[160,180,11,8,14,10,16,13],
+    [180,200,12,9,15,11,17,14],[200,260,13,9,16,12,18,15],[260,320,14,10,17,12,19,16],[320,380,15,10,18,13,20,17],
+    [380,440,16,11,19,13,21,18],[440,500,17,11,20,14,22,19]
+  ],
+  p2_p3: [
+    [0,2,1,0.5,1,1.0,1,1.0],[2,5,1,1.0,1,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,2,1.5],
+    [12,16,2,1.5,2,2.5,3,2.5],[16,20,2,1.5,3,2.5,3,3.0],[20,25,2,2.5,3,2.5,4,3.0],[25,30,3,2.5,4,3.0,4,4.0],
+    [30,40,3,2.5,4,3.0,5,4.0],[40,50,4,2.5,5,3.0,6,4.0],[50,55,4,3.0,5,4.0,6,5.0],[55,60,4,3.0,6,4.0,6,5.0],
+    [60,65,5,3.0,6,4.0,6,5.5],[65,70,5,3.0,6,5.0,7,5.5],[70,75,5,4.0,6,5.0,7,6.5],[75,80,6,4.0,6,5.0,8,6.5],
+    [80,85,6,4.0,7,5.5,8,7.0],[85,90,6,5.0,7,5.5,9,7.0],[90,95,6,5.0,8,5.5,9,8.0],[95,100,6,5.0,8,6.5,10,8.0],
+    [100,120,7,5.5,9,7.0,10,9.0],[120,140,8,5.5,10,7.0,11,9.0],[140,160,8,6.5,10,8.0,12,9.5],[160,180,9,6.5,11,8.0,13,10.5],
+    [180,200,10,7.0,12,9.0,14,11.0],[200,260,10,7.0,13,9.5,14,12.0],[260,320,11,8.0,14,9.5,15,13.0],[320,380,12,8.0,14,10.5,16,13.5],
+    [380,440,13,9.0,15,10.5,17,14.5],[440,500,14,9.0,16,11.0,18,15.0],[500,560,14,9.5,17,12.0,18,16.0],[560,620,15,9.5,18,12.0,19,17.0],
+    [620,680,16,10.5,18,13.0,20,17.5],[680,740,17,10.5,19,13.0,21,18.5],[740,800,18,11.0,20,13.5,22,19.0]
+  ],
+  p3_p4: [
+    [0,2,1,0.5,1,1.0,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,3,2.0],
+    [12,16,2,1.0,3,2.0,4,2.5],[16,20,2,1.0,3,2.0,4,3.0],[20,25,3,1.5,3,2.5,5,3.5],[25,30,3,1.5,4,2.5,5,3.5],
+    [30,40,3,1.5,4,3.0,6,3.5],[40,50,4,2.0,4,3.0,7,3.5],[50,55,4,2.0,5,3.0,8,4.0],[55,60,4,2.5,5,3.5,8,4.5],
+    [60,65,5,2.5,6,3.5,9,5.0],[65,70,5,2.5,6,3.5,10,5.0],[70,75,5,3.0,7,4.0,10,5.5],[75,80,6,3.0,7,4.0,11,5.5],
+    [80,85,6,3.0,7,4.0,11,6.0],[85,90,6,3.0,8,4.0,12,6.0],[90,95,6,3.0,8,4.0,12,6.0],[95,100,6,3.0,8,4.0,12,6.0],
+    [100,120,7,3.5,9,4.5,13,6.5],[120,140,7,4.0,10,4.5,14,7.0],[140,160,8,4.0,11,5.0,15,7.5],[160,180,8,4.5,12,5.0,16,8.0],
+    [180,200,9,4.5,12,5.5,17,8.5],[200,260,9,5.0,13,5.5,18,9.0],[260,320,9,5.0,14,5.5,19,9.0],[320,380,10,5.5,15,5.5,20,9.5],
+    [380,440,10,5.5,15,6.0,21,10.0],[440,500,10,6.0,16,6.0,22,10.5],[500,560,12,6.5,18,7.0,24,11.5],[560,620,13,7.0,20,7.5,26,12.5],
+    [620,680,14,7.5,22,8.0,28,13.5],[680,740,16,8.5,25,9.0,30,14.5],[740,800,18,9.0,27,10.0,32,15.0],[800,900,19,9.5,29,11.0,33,15.5],
+    [900,1000,20,10.0,30,12.0,33,16.0]
+  ],
+  p4_above: [
+    [0,2,1,0.5,1,1.0,1,1.0],[2,5,2,0.5,2,1.0,2,1.0],[5,8,2,1.0,2,1.5,3,1.5],[8,12,2,1.0,3,1.5,3,2.0],
+    [12,16,2,1.0,3,2.0,4,2.5],[16,20,2,1.0,3,2.0,4,3.0],[20,25,3,1.5,3,2.5,5,3.0],[25,30,3,1.5,4,2.5,5,3.0],
+    [30,40,3,1.5,4,3.0,5,3.0],[40,50,4,2.0,4,3.0,6,3.0],[50,55,4,2.0,5,3.0,7,3.5],[55,60,4,2.0,5,3.0,7,4.0],
+    [60,65,5,2.0,5,3.0,8,4.5],[65,70,5,2.0,5,3.0,9,4.5],[70,75,5,2.5,6,3.5,9,5.0],[75,80,5,2.5,6,3.5,10,5.0],
+    [80,85,5,2.5,6,3.5,10,5.5],[85,90,5,2.5,7,3.5,11,5.5],[90,95,5,2.5,7,3.5,11,5.5],[95,100,5,2.5,7,3.5,11,5.5],
+    [100,120,6,3.0,8,4.0,12,6.0],[120,140,6,3.5,9,4.0,13,6.5],[140,160,7,3.5,10,4.5,14,7.0],[160,180,7,4.0,11,4.5,14,7.0],
+    [180,200,8,4.0,11,5.0,15,7.5],[200,260,8,4.5,12,5.0,16,8.0],[260,320,8,4.5,13,5.0,17,8.0],[320,380,9,5.0,14,5.0,18,8.5],
+    [380,440,9,5.0,14,5.5,19,9.0],[440,500,9,5.5,14,5.5,20,9.5],[500,560,11,6.0,16,6.5,22,10.5],[560,620,12,6.5,18,7.0,23,11.0],
+    [620,680,13,7.0,20,7.5,25,12.0],[680,740,14,7.5,23,8.0,27,13.0],[740,800,16,8.0,24,9.0,29,13.5],[800,900,17,8.5,26,10.0,30,14.0],
+    [900,1000,18,9.0,27,11.0,30,14.5]
+  ]
+};
+
+const DB = {};
+function buildDB() {
+  for (let [pitch, rows] of Object.entries(MATRIX_RAW)) {
+    DB[pitch] = [];
+    for (let r of rows) {
+      let [minA, maxA, hP, hD, sP, sD, wP, wD] = r;
+      DB[pitch].push({
+        min: minA, max: maxA,
+        hoist: { p: hP, d: hD },
+        seat: { p: sP, d: sD },
+        wall: { p: wP, d: wD }
+      });
+    }
+  }
+}
+buildDB();
+
+function findMatch(pitchKey, area) {
+  const arr = DB[pitchKey];
+  if (!arr) return null;
+  for (let seg of arr) {
+    if (area >= seg.min && area <= seg.max) return seg;
+  }
+  if (area > arr[arr.length-1].max) return arr[arr.length-1];
+  if (area < arr[0].min) return arr[0];
+  return null;
+}
+
+function getPitchLimit(pitchKey) {
+  const limits = { p1_below:200, p1_p2:500, p2_p3:800, p3_p4:1000, p4_above:1000 };
+  return limits[pitchKey];
+}
+
+function computeAll(triggeredBySlider = false) {
+  const pitchKey = document.getElementById('pitchSelect').value;
+  const installMethod = document.getElementById('installMethod').value;
+
+  let std = parseFloat(document.getElementById('stdArea').value) || 0;
+  let nonStd = parseFloat(document.getElementById('nonStdArea').value) || 0;
+  if (std < 0) std = 0; if (nonStd < 0) nonStd = 0;
+
+  const equivArea = std + (nonStd * 2.0);
+  document.getElementById('equivAreaSpan').innerText = equivArea.toFixed(1);
+
+  const limit = getPitchLimit(pitchKey);
+  const warnDiv = document.getElementById('warningMsg');
+  if (equivArea > limit) {
+    warnDiv.style.display = 'block';
+    warnDiv.innerHTML = `⚠️ 等效面积 ${equivArea.toFixed(1)}㎡ 超过设计上限 ${limit}㎡，请对接技术部沟通确认调整。`;
+  } else {
+    warnDiv.style.display = 'none';
+  }
+
+  const matched = findMatch(pitchKey, equivArea);
+  if (!matched) return;
+
+  let basePeople, baseDays;
+  if (installMethod === 'hoist') {
+    basePeople = matched.hoist.p;
+    baseDays = matched.hoist.d;
+  } else if (installMethod === 'seat') {
+    basePeople = matched.seat.p;
+    baseDays = matched.seat.d;
+  } else {
+    basePeople = matched.wall.p;
+    baseDays = matched.wall.d;
+  }
+
+  // 系数作用于基础人数，不影响矩阵原始天数
+  let adjustedPeople = basePeople;
+  if (document.getElementById('highAltitude').checked) adjustedPeople *= 1.3;
+  if (document.getElementById('logistics').checked) adjustedPeople *= 1.5;
+  
+  // 向上取整确保安全冗余
+  adjustedPeople = Math.ceil(adjustedPeople);
+
+  document.getElementById('basePeople').innerText = adjustedPeople;
+  document.getElementById('baseDays').innerText = baseDays.toFixed(1);
+
+  const slider = document.getElementById('staffSlider');
+  let minStaff = Math.max(1, Math.floor(adjustedPeople * 0.5));
+  let maxStaff = Math.max(minStaff+1, Math.ceil(adjustedPeople * 3));
+  maxStaff = Math.min(maxStaff, 50);
+  slider.min = minStaff;
+  slider.max = maxStaff;
+
+  if (!triggeredBySlider) {
+    slider.value = adjustedPeople;
+  } else {
+    let cur = parseInt(slider.value);
+    if (cur < minStaff) slider.value = minStaff;
+    if (cur > maxStaff) slider.value = maxStaff;
+  }
+  document.getElementById('currentStaffValue').innerText = slider.value + " 人";
+  document.getElementById('optimalStaffHint').innerHTML = `⭐ 推荐人数: ${adjustedPeople} 人`;
+
+  const finalPeople = parseInt(slider.value);
+  let finalDays = 0;
+  if (finalPeople === adjustedPeople) {
+    finalDays = baseDays;
+  } else {
+    // 弹性排班算法：总工时 = 推荐人数 * 原始天数
+    const totalManDays = adjustedPeople * baseDays;
+    let raw = totalManDays / finalPeople;
+    finalDays = Math.ceil(raw * 2) / 2; // 0.5天步长向上取整
+  }
+  document.getElementById('finalPeople').innerText = finalPeople;
+  document.getElementById('finalDays').innerText = finalDays.toFixed(1);
+}
+
+function bindEvents() {
+  const ids = ['pitchSelect', 'installMethod', 'stdArea', 'nonStdArea', 'highAltitude', 'logistics'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', () => computeAll(false));
+      if (id === 'stdArea' || id === 'nonStdArea') el.addEventListener('input', () => computeAll(false));
+    }
+  });
+  const slider = document.getElementById('staffSlider');
+  slider.addEventListener('input', () => computeAll(true));
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  bindEvents();
+  computeAll(false);
+});
+</script>
+</body>
+</html>
