@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ROE · 智能物理走线拓扑图 (精简联动版)</title>
+    <title>ROE ·备品物料清单</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -17,10 +17,47 @@
         select:focus, input:focus { border-color:#22d3ee; outline:none; }
         .row-flex { display:flex; gap:12px; }
         .toggles { display:flex; gap:12px; margin:18px 0; }
-        .toggle-item { display:flex; align-items:center; gap:8px; background:#0f1320; padding:8px 14px; border-radius:28px; width:100%; border:1px solid #2d3748; cursor:pointer; font-size: 0.8rem; }
-        .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; margin-bottom:18px; background:#0f1320; border-radius:20px; padding:14px; }
+/* 调整后的 toggle-item：始终带有底色，宽度自适应 */
+.toggle-item { 
+    display: flex; 
+    align-items: center; 
+    justify-content: flex-start; 
+    gap: 8px; 
+    /* 始终保持填充色 */
+    background: rgba(34, 211, 238, 0.1); 
+    padding: 8px 14px; 
+    border-radius: 28px; 
+    width: fit-content;          /* 宽度随内容自适应 */
+    white-space: nowrap;         /* 强制文字不换行 */
+    border: 1px solid rgba(34, 211, 238, 0.3); 
+    cursor: pointer; 
+    font-size: 0.8rem; 
+    transition: 0.2s;
+    color: #eef2ff;
+}
+
+/* 悬停 */
+.toggle-item:hover {
+    background: rgba(34, 211, 238, 0.2);
+    border-color: #22d3ee;
+}
+
+/* 勾选后 */
+.toggle-item:has(input:checked) {
+    background: rgba(253, 230, 138, 0.18);
+    border-color: #fde68a;
+    color: #fde68a;
+}
+
+/* 勾选后悬停 */
+.toggle-item:has(input:checked):hover {
+    background: rgba(253, 230, 138, 0.25);
+    border-color: #facc15;
+}
+
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-bottom:18px; background:#0f1320; border-radius:20px; padding:14px; }
         .stat-card { border-left:2px solid #22d3ee; padding:6px 12px; background:rgba(0,0,0,0.2); border-radius:8px; }
-        .stat-label { font-size:0.68rem; color:#9aa6b5; text-transform:uppercase; }
+        .stat-label { font-size:0.68rem; color:#9aa6b5; text-transform:uppercase; margin-bottom:2px;}
         .stat-value { font-size:0.95rem; font-weight:700; color:#fff; }
         .rule-hint { background:#10141f; border-radius:16px; padding:12px 16px; margin-bottom:18px; font-size:12px; color:#b9c7dd; border-left:4px solid #22d3ee; font-family:'JetBrains Mono',monospace; line-height:1.45; }
         .cabling-canvas { background:#0a0c12; border-radius:20px; padding:20px; overflow-x:auto; margin-bottom:16px; border:1px solid #1e2a3a; text-align:center; }
@@ -58,9 +95,9 @@
             <div class="selector-group"><label>📏 大屏列数 (宽)</label><input type="number" id="customCols" min="1" step="1" value="1"></div>
             <div class="selector-group"><label>📐 大屏行数 (高)</label><input type="number" id="customRows" min="1" step="1" value="1"></div>
         </div>
-        <button id="recommendBtn" class="btn-secondary">✨ 推荐最佳比例 (基于16:9)</button>
+         <div class="toggles"><label class="toggle-item"><input type="checkbox" id="addHalfRowCheckbox"> Half Panel</label></div>
+       <button id="recommendBtn" class="btn-secondary">✨ 推荐最佳比例 (基于16:9)</button>
         <div id="dimensionWarning" class="warning-tip">⚠️ 越界: 列×行 > 总箱体数</div>
-        <div class="toggles"><label class="toggle-item"><input type="checkbox" id="addHalfRowCheckbox"> 底部Half Panel</label></div>
         
         <div class="section-title">⚙️ 参数设置</div>
         <div class="selector-group"><label>🎨 色深/帧率</label><select id="bitRateSelect"></select></div>
@@ -88,19 +125,16 @@
     <div class="right-panel">
         <div class="stats-grid" id="statsGrid"></div>
         <div class="rule-hint" id="ruleHint">
-            📡 <b>网口带载限制 & 智能分配法则</b><br>
-            • 单网口最大带载像素: <span id="maxPixelsSpan" style="cursor:pointer; text-decoration:underline;">—</span> px <span id="pixelSourceSpan"></span><br>
-            • 单箱体像素面积: <span id="unitAreaSpan">—</span> px² → 最多带载箱体 α = max(1, floor(最大像素/单箱像素))<br>
-            • 当前主轴长度 N (竖向为行数,横向为列数) → 若 N > α : 自动均分多根网线；若 N ≤ α : 跨列/行合并，并智能S形走线。<br>
-            🔌 <b>电源带载限制:</b> 单路最大功率 <span id="maxPowerSpan">—</span> W，单箱功耗 <span id="unitPowerSpan">—</span> W → α_p = max(1, floor(限值/单箱功率))。<br>
-            💡 <b>提示:</b> 点击上面“单网口最大带载像素”数值可手动修改该主控/网口/色深下的带载上限。
+            📡 <b>网口带载限制:</b> 单网口最大带载像素 <span id="maxPixelsSpan" style="cursor:pointer; text-decoration:underline;">—</span> px <span id="pixelSourceSpan"></span><br>
+            🔌 <b>电源带载限制:</b> 单路最大功率 <span id="maxPowerSpan">—</span> W，整箱功耗 <span id="unitPowerSpan">—</span> W。<br>
+            💡 <b>智能适配法则:</b> 系统自动识别 Half Panel，其功耗与像素均按 <span style="color:#22d3ee;font-weight:bold;">0.5倍</span> 实时累加，突破简单的箱体计数限制，实现高精度的 S 形物理走线与负载均衡。<br>
+            <i>点击上面“单网口最大带载像素”数值可手动修改该主控/网口/色深下的带载上限。</i>
         </div>
         <div class="cabling-canvas"><div id="cabVisual"></div></div>
     </div>
 </div>
 
 <script>
-// ======================= 处理器数据库 (完整) =======================
 const processorData = [
     { "主控": "Brompton", "网口": "1G", "8b24Hz": "1,312,500", "8b30Hz": "1,050,000", "8b48Hz": "656,250", "8b50Hz": "630,000", "8b60Hz": "525,000", "8b120Hz": "262,500", "8b144Hz": "218,750", "8b240Hz": "131,250", "10b24Hz": "1,050,000", "10b30Hz": "840,000", "10b48Hz": "525,000", "10b50Hz": "504,000", "10b60Hz": "420,000", "10b120Hz": "210,000", "10b144Hz": "175,000", "10b240Hz": "105,000", "12b24Hz": "875,000", "12b30Hz": "700,000", "12b48Hz": "437,500", "12b50Hz": "420,000", "12b60Hz": "350,000", "12b120Hz": "175,000", "12b144Hz": "145,833", "12b240Hz": "87,500" },
     { "主控": "MVR", "网口": "1G", "8b24Hz": "1,593,750", "8b30Hz": "1,275,000", "8b48Hz": "793,750", "8b50Hz": "762,500", "8b60Hz": "637,500", "8b120Hz": "300,000", "8b144Hz": "243,750", "8b240Hz": "125,000", "10b24Hz": "1,275,000", "10b30Hz": "1,020,000", "10b48Hz": "635,000", "10b50Hz": "610,000", "10b60Hz": "510,000", "10b120Hz": "240,000", "10b144Hz": "195,000", "10b240Hz": "100,000", "12b24Hz": "1,062,500", "12b30Hz": "850,000", "12b48Hz": "531,000", "12b50Hz": "510,000", "12b60Hz": "425,000", "12b120Hz": "200,000", "12b144Hz": "160,000", "12b240Hz": "90,000" },
@@ -172,119 +206,177 @@ function findBestRectangle(totalFull, pixelW, pixelH) {
     return { cols: bestCols, rows: bestRows };
 }
 
+// ======================= 基于真实物理负载累加的核心走线算法 =======================
 function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, direction) {
     let rows = matrix.length, cols = matrix[0].length;
-    let alpha = Math.max(1, Math.floor(maxCap / unitCap));
     let labels = Array(rows).fill().map(() => Array(cols).fill(''));
     
+    // 如果是 Half 面板，功耗/像素占用严格算作 0.5
+    const getLoad = (r, c) => matrix[r][c].type === "Half" ? (unitCap * 0.5) : unitCap;
+
     if (direction === 'vertical') {
-        let N = rows;
-        if (N > alpha) {
-            let k = Math.ceil(N / alpha);
-            let chunkSizes = [], remaining = N;
-            for (let i = 0; i < k; i++) { let sz = Math.ceil(remaining / (k - i)); chunkSizes.push(sz); remaining -= sz; }
+        let maxColLoad = 0;
+        for (let c = 0; c < cols; c++) {
+            let cL = 0; for (let r = 0; r < rows; r++) cL += getLoad(r, c);
+            if (cL > maxColLoad) maxColLoad = cL;
+        }
+
+        if (maxColLoad > maxCap) {
+            // 单列超载：在列内部进行均衡截断
             let cableId = 1;
             for (let c = 0; c < cols; c++) {
-                let rOrder = [];
-                for (let r = 0; r < rows; r++) rOrder.push(r);
+                let colLoad = 0; for(let r=0; r<rows; r++) colLoad += getLoad(r,c);
+                let expectedK = Math.ceil(colLoad / maxCap);
+                let rowSplits = [];
+                let rIdx = 0, remainingRows = rows;
                 
-                let rIdx = 0;
-                for (let i = 0; i < k; i++) {
-                    let size = chunkSizes[i], seqIn = 1;
-                    for (let j = 0; j < size; j++) labels[rOrder[rIdx++]][c] = `${prefix}${cableId}-${seqIn++}`;
+                while (remainingRows > 0) {
+                    let currentK = Math.max(1, expectedK - rowSplits.length);
+                    let targetSize = Math.ceil(remainingRows / currentK);
+                    let actualSize = 0, chunkLoad = 0;
+                    for (let j = 0; j < targetSize; j++) {
+                        if (rIdx + j < rows) {
+                            if (chunkLoad + getLoad(rIdx + j, c) > maxCap && actualSize > 0) break;
+                            chunkLoad += getLoad(rIdx + j, c);
+                            actualSize++;
+                        }
+                    }
+                    if (actualSize === 0) actualSize = 1; 
+                    let chunk = [];
+                    for (let j = 0; j < actualSize; j++) chunk.push(rIdx++);
+                    rowSplits.push(chunk);
+                    remainingRows -= actualSize;
+                }
+
+                for (let chunk of rowSplits) {
+                    let seq = 1;
+                    for (let r of chunk) labels[r][c] = `${prefix}${cableId}-${seq++}`;
                     cableId++;
                 }
             }
         } else {
-            let ratio = alpha / N, floorRatio = Math.floor(ratio);
-            let stepCols = (ratio - floorRatio) < 0.5 ? floorRatio : floorRatio + 0.5;
-            let baseLimit = stepCols * N; 
+            // 多列合并：自动按照列进行聚合
+            let totalLoad = 0; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) totalLoad += getLoad(r,c);
+            let expectedK = Math.ceil(totalLoad / maxCap);
+            let colChunks = [];
+            let cIdx = 0, remainingCols = cols;
             
-            let cableId = 1, seq = 1, count = 0;
-            let currentDir = 1;
-            
-            for (let c = 0; c < cols; c++) {
-                if (pathType === 'N') {
-                    currentDir = 1;
-                } else {
-                    if (seq === 1) {
-                        currentDir = 1;
-                    } else {
-                        currentDir = -currentDir;
+            while (remainingCols > 0) {
+                let currentK = Math.max(1, expectedK - colChunks.length);
+                let targetSize = Math.ceil(remainingCols / currentK);
+                let actualSize = 0, chunkLoad = 0;
+                for (let j = 0; j < targetSize; j++) {
+                    if (cIdx + j < cols) {
+                        let cL = 0; for(let r=0; r<rows; r++) cL += getLoad(r, cIdx+j);
+                        if (chunkLoad + cL > maxCap && actualSize > 0) break;
+                        chunkLoad += cL;
+                        actualSize++;
                     }
                 }
-                
-                let rOrder = [];
-                if (currentDir === 1) {
-                    for (let r = 0; r < rows; r++) rOrder.push(r);
-                } else {
-                    for (let r = rows - 1; r >= 0; r--) rOrder.push(r);
+                if (actualSize === 0) actualSize = 1;
+                let chunk = [];
+                for(let j=0; j<actualSize; j++) chunk.push(cIdx++);
+                colChunks.push(chunk);
+                remainingCols -= actualSize;
+            }
+
+            let cableId = 1;
+            for (let chunk of colChunks) {
+                let seq = 1, currentDir = 1;
+                for (let c of chunk) {
+                    if (pathType === 'N') currentDir = 1;
+                    else if (seq === 1) currentDir = 1;
+                    else currentDir = -currentDir;
+
+                    let rOrder = [];
+                    if (currentDir === 1) for(let r=0; r<rows; r++) rOrder.push(r);
+                    else for(let r=rows-1; r>=0; r--) rOrder.push(r);
+
+                    for (let r of rOrder) labels[r][c] = `${prefix}${cableId}-${seq++}`;
                 }
-                
-                for (let i = 0; i < rOrder.length; i++) {
-                    labels[rOrder[i]][c] = `${prefix}${cableId}-${seq++}`;
-                    count++;
-                    
-                    let currentLimit = Math.max(1, (cableId % 2 === 1) ? Math.ceil(baseLimit) : Math.floor(baseLimit));
-                    if (count >= currentLimit && !(c === cols - 1 && i === rOrder.length - 1)) { 
-                        cableId++; seq = 1; count = 0; 
-                    }
-                }
+                cableId++;
             }
         }
     } else {
-        let N = cols; 
-        if (N > alpha) {
-            let k = Math.ceil(N / alpha);
-            let chunkSizes = [], remaining = N;
-            for (let i = 0; i < k; i++) { let sz = Math.ceil(remaining / (k - i)); chunkSizes.push(sz); remaining -= sz; }
+        // 横向走线逻辑
+        let maxRowLoad = 0;
+        for (let r = 0; r < rows; r++) {
+            let rL = 0; for (let c = 0; c < cols; c++) rL += getLoad(r, c);
+            if (rL > maxRowLoad) maxRowLoad = rL;
+        }
+
+        if (maxRowLoad > maxCap) {
             let cableId = 1;
             for (let r = 0; r < rows; r++) {
-                let cOrder = [];
-                for (let c = 0; c < cols; c++) cOrder.push(c);
+                let rowLoad = 0; for(let c=0; c<cols; c++) rowLoad += getLoad(r,c);
+                let expectedK = Math.ceil(rowLoad / maxCap);
+                let colSplits = [];
+                let cIdx = 0, remainingCols = cols;
                 
-                let cIdx = 0;
-                for (let i = 0; i < k; i++) {
-                    let size = chunkSizes[i], seqIn = 1;
-                    for (let j = 0; j < size; j++) labels[r][cOrder[cIdx++]] = `${prefix}${cableId}-${seqIn++}`;
+                while (remainingCols > 0) {
+                    let currentK = Math.max(1, expectedK - colSplits.length);
+                    let targetSize = Math.ceil(remainingCols / currentK);
+                    let actualSize = 0, chunkLoad = 0;
+                    for (let j = 0; j < targetSize; j++) {
+                        if (cIdx + j < cols) {
+                            if (chunkLoad + getLoad(r, cIdx + j) > maxCap && actualSize > 0) break;
+                            chunkLoad += getLoad(r, cIdx + j);
+                            actualSize++;
+                        }
+                    }
+                    if (actualSize === 0) actualSize = 1;
+                    let chunk = [];
+                    for (let j = 0; j < actualSize; j++) chunk.push(cIdx++);
+                    colSplits.push(chunk);
+                    remainingCols -= actualSize;
+                }
+
+                for (let chunk of colSplits) {
+                    let seq = 1;
+                    for (let c of chunk) labels[r][c] = `${prefix}${cableId}-${seq++}`;
                     cableId++;
                 }
             }
         } else {
-            let ratio = alpha / N, floorRatio = Math.floor(ratio);
-            let stepRows = (ratio - floorRatio) < 0.5 ? floorRatio : floorRatio + 0.5;
-            let baseLimit = stepRows * N; 
+            let totalLoad = 0; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) totalLoad += getLoad(r,c);
+            let expectedK = Math.ceil(totalLoad / maxCap);
+            let rowChunks = [];
+            let rIdx = 0, remainingRows = rows;
             
-            let cableId = 1, seq = 1, count = 0;
-            let currentDir = 1;
-            
-            for (let r = 0; r < rows; r++) {
-                if (pathType === 'N') {
-                    currentDir = 1;
-                } else {
-                    if (seq === 1) {
-                        currentDir = 1;
-                    } else {
-                        currentDir = -currentDir;
+            while (remainingRows > 0) {
+                let currentK = Math.max(1, expectedK - rowChunks.length);
+                let targetSize = Math.ceil(remainingRows / currentK);
+                let actualSize = 0, chunkLoad = 0;
+                for (let j = 0; j < targetSize; j++) {
+                    if (rIdx + j < rows) {
+                        let rL = 0; for(let c=0; c<cols; c++) rL += getLoad(rIdx+j, c);
+                        if (chunkLoad + rL > maxCap && actualSize > 0) break;
+                        chunkLoad += rL;
+                        actualSize++;
                     }
                 }
-                
-                let cOrder = [];
-                if (currentDir === 1) {
-                    for (let c = 0; c < cols; c++) cOrder.push(c);
-                } else {
-                    for (let c = cols - 1; c >= 0; c--) cOrder.push(c);
+                if (actualSize === 0) actualSize = 1;
+                let chunk = [];
+                for (let j = 0; j < actualSize; j++) chunk.push(rIdx++);
+                rowChunks.push(chunk);
+                remainingRows -= actualSize;
+            }
+
+            let cableId = 1;
+            for (let chunk of rowChunks) {
+                let seq = 1, currentDir = 1;
+                for (let r of chunk) {
+                    if (pathType === 'N') currentDir = 1;
+                    else if (seq === 1) currentDir = 1;
+                    else currentDir = -currentDir;
+
+                    let cOrder = [];
+                    if (currentDir === 1) for(let c=0; c<cols; c++) cOrder.push(c);
+                    else for(let c=cols-1; c>=0; c--) cOrder.push(c);
+
+                    for (let c of cOrder) labels[r][c] = `${prefix}${cableId}-${seq++}`;
                 }
-                
-                for (let i = 0; i < cOrder.length; i++) {
-                    labels[r][cOrder[i]] = `${prefix}${cableId}-${seq++}`;
-                    count++;
-                    
-                    let currentLimit = Math.max(1, (cableId % 2 === 1) ? Math.ceil(baseLimit) : Math.floor(baseLimit));
-                    if (count >= currentLimit && !(r === rows - 1 && i === cOrder.length - 1)) { 
-                        cableId++; seq = 1; count = 0; 
-                    }
-                }
+                cableId++;
             }
         }
     }
@@ -311,6 +403,7 @@ function computeSystem() {
         colsInput.classList.remove('input-error'); rowsInput.classList.remove('input-error');
         warnDiv.style.display = 'none';
     }
+    
     let hasHalfRow = document.getElementById('addHalfRowCheckbox').checked;
     let matrix = [];
     let w = currentProductObj.pixelW;
@@ -325,47 +418,52 @@ function computeSystem() {
         for (let c = 0; c < useCols; c++) halfArr.push({ type: "Half", pixelW: w, pixelH: Math.floor(h/2) });
         matrix.push(halfArr);
     }
+    
     let maxPower = getMaxPowerLoad(), unitPower = getFullPower();
-    let maxPixels = getMaxPortPixels();
-    let unitPixels = getFullPixelArea();
+    let maxPixels = getMaxPortPixels(), unitPixels = getFullPixelArea();
     let direction = document.getElementById('routeDirectionSelect').value;
     
-    let alphaPower = Math.max(1, Math.floor(maxPower / unitPower));
-    let alphaPort = Math.max(1, Math.floor(maxPixels / unitPixels));
-    
+    // 执行高精度负载算法
     let powerLabels = assignLabelsByStrictRule(matrix, maxPower, unitPower, 'N', 'P', direction);
     let portLabels = assignLabelsByStrictRule(matrix, maxPixels, unitPixels, 'S', 'D', direction);
     
-    let powerCountMap = new Map();
-    let portCountMap = new Map();
+    // 计算并统计真实物理负载 (功率和像素面积累加)
+    let powerLoadMap = new Map();
+    let portLoadMap = new Map();
+    
     for (let r = 0; r < matrix.length; r++) {
         for (let c = 0; c < matrix[0].length; c++) {
             let pId = powerLabels[r][c].split('-')[0];
             let dId = portLabels[r][c].split('-')[0];
-            powerCountMap.set(pId, (powerCountMap.get(pId) || 0) + 1);
-            portCountMap.set(dId, (portCountMap.get(dId) || 0) + 1);
+            
+            let loadPower = matrix[r][c].type === "Half" ? (unitPower * 0.5) : unitPower;
+            let loadPixels = matrix[r][c].type === "Half" ? (unitPixels * 0.5) : unitPixels;
+            
+            powerLoadMap.set(pId, (powerLoadMap.get(pId) || 0) + loadPower);
+            portLoadMap.set(dId, (portLoadMap.get(dId) || 0) + loadPixels);
         }
     }
-    let maxPowerLoadActual = Math.max(...powerCountMap.values(), 0);
-    let maxPortLoadActual = Math.max(...portCountMap.values(), 0);
+    
+    let totalPowerCables = powerLoadMap.size;
+    let totalPortCables = portLoadMap.size;
+    let peakPowerLoadActual = Math.max(...powerLoadMap.values(), 0);
+    let peakPortLoadActual = Math.max(...portLoadMap.values(), 0);
     
     lastMatrix = matrix.map((row, r) => row.map((cell, c) => ({ ...cell, powerLabel: powerLabels[r][c], portLabel: portLabels[r][c] })));
     
-    let totalPower = powerCountMap.size;
-    let totalPort = portCountMap.size;
     let totalResW = useCols * w;
     let totalResH = useRows * h + (hasHalfRow ? h/2 : 0);
     
     document.getElementById('statsGrid').innerHTML = `
         <div class="stat-card"><div class="stat-label">🖥️ 总分辨率</div><div class="stat-value">${totalResW}×${Math.floor(totalResH)}</div></div>
         <div class="stat-card"><div class="stat-label"> ▦  大屏宽高</div><div class="stat-value">${useCols} × ${useRows + (hasHalfRow ? 0.5 : 0)}</div></div>
-        <div class="stat-card"><div class="stat-label">🔴 主电源数</div><div class="stat-value" style="color:#ff7e6e;">${totalPower} 根</div></div>
-        <div class="stat-card"><div class="stat-label">🔵 主网线数</div><div class="stat-value" style="color:#6bc8ff;">${totalPort} 根</div></div>
-        <div class="stat-card"><div class="stat-label">⚡ 单电源线带载</div><div class="stat-value">${maxPowerLoadActual} / ${alphaPower}</div></div>
-        <div class="stat-card"><div class="stat-label">🌐 单网线带载</div><div class="stat-value">${maxPortLoadActual} / ${alphaPort}</div></div>
+        <div class="stat-card"><div class="stat-label">🔴 主电源线数</div><div class="stat-value" style="color:#ff7e6e;">${totalPowerCables} 根</div></div>
+        <div class="stat-card"><div class="stat-label">🔵 主网线数</div><div class="stat-value" style="color:#6bc8ff;">${totalPortCables} 根</div></div>
+        <div class="stat-card"><div class="stat-label">⚡ 峰值电源线负载</div><div class="stat-value">${peakPowerLoadActual} <span style="font-size:0.7em;color:#9aa6b5">/ ${maxPower} W</span></div></div>
+        <div class="stat-card"><div class="stat-label">🌐 峰值网线负载</div><div class="stat-value">${peakPortLoadActual.toLocaleString()} <span style="font-size:0.7em;color:#9aa6b5">/ ${maxPixels.toLocaleString()} px</span></div></div>
     `;
+    
     document.getElementById('maxPixelsSpan').innerText = maxPixels.toLocaleString();
-    document.getElementById('unitAreaSpan').innerText = unitPixels;
     document.getElementById('maxPowerSpan').innerText = maxPower;
     document.getElementById('unitPowerSpan').innerText = unitPower;
     renderDynamicVisual(lastMatrix);
@@ -397,7 +495,6 @@ function renderDynamicVisual(matrix) {
     document.getElementById('cabVisual').innerHTML = html;
 }
 
-// ======================= 优化后的核心走线绘制函数 =======================
 function drawCablingLines() {
     let container = document.querySelector('.matrix-visual');
     if (!container || !lastMatrix) return;
@@ -459,68 +556,52 @@ function drawCablingLines() {
                     let p1 = pts[i-1];
                     let p2 = pts[i];
                     
-if (direction === 'vertical' && p1.c !== p2.c) {
-    // 获取起点和终点所在屏体元素的边界，计算出缝隙中央的 x 坐标
-    let startEl = container.querySelector(`[data-row="${p1.r}"][data-col="${p1.c}"]`);
-    let endEl = container.querySelector(`[data-row="${p2.r}"][data-col="${p2.c}"]`);
-    if (startEl && endEl) {
-        let startRect = startEl.getBoundingClientRect();
-        let endRect = endEl.getBoundingClientRect();
-        let containerRect = container.getBoundingClientRect();
-        
-        // 缝隙中央 x = 左侧屏右边界 + 缝隙宽度的一半
-        let leftCol = Math.min(p1.c, p2.c);
-        let leftEl = container.querySelector(`[data-row="0"][data-col="${leftCol}"]`);
-        let rightEl = container.querySelector(`[data-row="0"][data-col="${leftCol+1}"]`);
-        if (leftEl && rightEl) {
-            let leftRect = leftEl.getBoundingClientRect();
-            let rightRect = rightEl.getBoundingClientRect();
-            let gapX = (leftRect.right + rightRect.left) / 2 - containerRect.left;
-            
-            // 路径：起点 → 水平到 gapX → 垂直移动到目标y → 水平到终点x
-            d += ` L ${gapX} ${p1.y} L ${gapX} ${p2.y} L ${p2.x} ${p2.y}`;
-        } else {
-            // 降级方案：仍使用中点
-            let x_gap = (p1.x + p2.x) / 2;
-            d += ` L ${x_gap} ${p1.y} L ${x_gap} ${p2.y} L ${p2.x} ${p2.y}`;
-        }
-    } else {
-        let x_gap = (p1.x + p2.x) / 2;
-        d += ` L ${x_gap} ${p1.y} L ${x_gap} ${p2.y} L ${p2.x} ${p2.y}`;
-    }
-}
-else if (direction === 'horizontal' && p1.r !== p2.r) {
-    // 获取起点和终点所在屏体的行边界，计算两行之间的缝隙中央 Y 坐标
-    let startEl = container.querySelector(`[data-row="${p1.r}"][data-col="${p1.c}"]`);
-    let endEl = container.querySelector(`[data-row="${p2.r}"][data-col="${p2.c}"]`);
-    if (startEl && endEl) {
-        let startRect = startEl.getBoundingClientRect();
-        let endRect = endEl.getBoundingClientRect();
-        let containerRect = container.getBoundingClientRect();
-        
-        // 确定上方的行索引（较小行号）
-        let topRow = Math.min(p1.r, p2.r);
-        let bottomRow = topRow + 1;
-        let topEl = container.querySelector(`[data-row="${topRow}"][data-col="0"]`);
-        let bottomEl = container.querySelector(`[data-row="${bottomRow}"][data-col="0"]`);
-        if (topEl && bottomEl) {
-            let topRect = topEl.getBoundingClientRect();
-            let bottomRect = bottomEl.getBoundingClientRect();
-            // 缝隙中央 Y = 上方屏体底部 + (缝隙高度/2)
-            let gapY = (topRect.bottom + bottomRect.top) / 2 - containerRect.top;
-            
-            d += ` L ${p1.x} ${gapY} L ${p2.x} ${gapY} L ${p2.x} ${p2.y}`;
-        } else {
-            let y_gap = (p1.y + p2.y) / 2;
-            d += ` L ${p1.x} ${y_gap} L ${p2.x} ${y_gap} L ${p2.x} ${p2.y}`;
-        }
-    } else {
-        let y_gap = (p1.y + p2.y) / 2;
-        d += ` L ${p1.x} ${y_gap} L ${p2.x} ${y_gap} L ${p2.x} ${p2.y}`;
-    }
-}
-else {
-                        // 同列或同行相邻：直接拉直线
+                    if (direction === 'vertical' && p1.c !== p2.c) {
+                        let startEl = container.querySelector(`[data-row="${p1.r}"][data-col="${p1.c}"]`);
+                        let endEl = container.querySelector(`[data-row="${p2.r}"][data-col="${p2.c}"]`);
+                        if (startEl && endEl) {
+                            let containerRect = container.getBoundingClientRect();
+                            let leftCol = Math.min(p1.c, p2.c);
+                            let leftEl = container.querySelector(`[data-row="0"][data-col="${leftCol}"]`);
+                            let rightEl = container.querySelector(`[data-row="0"][data-col="${leftCol+1}"]`);
+                            if (leftEl && rightEl) {
+                                let leftRect = leftEl.getBoundingClientRect();
+                                let rightRect = rightEl.getBoundingClientRect();
+                                let gapX = (leftRect.right + rightRect.left) / 2 - containerRect.left;
+                                d += ` L ${gapX} ${p1.y} L ${gapX} ${p2.y} L ${p2.x} ${p2.y}`;
+                            } else {
+                                let x_gap = (p1.x + p2.x) / 2;
+                                d += ` L ${x_gap} ${p1.y} L ${x_gap} ${p2.y} L ${p2.x} ${p2.y}`;
+                            }
+                        } else {
+                            let x_gap = (p1.x + p2.x) / 2;
+                            d += ` L ${x_gap} ${p1.y} L ${x_gap} ${p2.y} L ${p2.x} ${p2.y}`;
+                        }
+                    }
+                    else if (direction === 'horizontal' && p1.r !== p2.r) {
+                        let startEl = container.querySelector(`[data-row="${p1.r}"][data-col="${p1.c}"]`);
+                        let endEl = container.querySelector(`[data-row="${p2.r}"][data-col="${p2.c}"]`);
+                        if (startEl && endEl) {
+                            let containerRect = container.getBoundingClientRect();
+                            let topRow = Math.min(p1.r, p2.r);
+                            let bottomRow = topRow + 1;
+                            let topEl = container.querySelector(`[data-row="${topRow}"][data-col="0"]`);
+                            let bottomEl = container.querySelector(`[data-row="${bottomRow}"][data-col="0"]`);
+                            if (topEl && bottomEl) {
+                                let topRect = topEl.getBoundingClientRect();
+                                let bottomRect = bottomEl.getBoundingClientRect();
+                                let gapY = (topRect.bottom + bottomRect.top) / 2 - containerRect.top;
+                                d += ` L ${p1.x} ${gapY} L ${p2.x} ${gapY} L ${p2.x} ${p2.y}`;
+                            } else {
+                                let y_gap = (p1.y + p2.y) / 2;
+                                d += ` L ${p1.x} ${y_gap} L ${p2.x} ${y_gap} L ${p2.x} ${p2.y}`;
+                            }
+                        } else {
+                            let y_gap = (p1.y + p2.y) / 2;
+                            d += ` L ${p1.x} ${y_gap} L ${p2.x} ${y_gap} L ${p2.x} ${p2.y}`;
+                        }
+                    }
+                    else {
                         d += ` L ${p2.x} ${p2.y}`;
                     }
                 }
