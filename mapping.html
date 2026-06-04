@@ -172,7 +172,6 @@ function findBestRectangle(totalFull, pixelW, pixelH) {
     return { cols: bestCols, rows: bestRows };
 }
 
-// 核心升级：带有状态记忆的“智能蛇形”算法 (Smart Snake)
 function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, direction) {
     let rows = matrix.length, cols = matrix[0].length;
     let alpha = Math.max(1, Math.floor(maxCap / unitCap));
@@ -181,14 +180,13 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
     if (direction === 'vertical') {
         let N = rows;
         if (N > alpha) {
-            // 一根线带不完一整列（必定切分）：所有线都不跨列，所以必须永远从上往下走 (currentDir=1)
             let k = Math.ceil(N / alpha);
             let chunkSizes = [], remaining = N;
             for (let i = 0; i < k; i++) { let sz = Math.ceil(remaining / (k - i)); chunkSizes.push(sz); remaining -= sz; }
             let cableId = 1;
             for (let c = 0; c < cols; c++) {
                 let rOrder = [];
-                for (let r = 0; r < rows; r++) rOrder.push(r); // 永远从上往下
+                for (let r = 0; r < rows; r++) rOrder.push(r);
                 
                 let rIdx = 0;
                 for (let i = 0; i < k; i++) {
@@ -198,23 +196,21 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                 }
             }
         } else {
-            // 一根线可以带载 >= 1整列：可能存在跨列情况
             let ratio = alpha / N, floorRatio = Math.floor(ratio);
             let stepCols = (ratio - floorRatio) < 0.5 ? floorRatio : floorRatio + 0.5;
             let baseLimit = stepCols * N; 
             
             let cableId = 1, seq = 1, count = 0;
-            let currentDir = 1; // 1代表从上往下，-1代表从下往上
+            let currentDir = 1;
             
             for (let c = 0; c < cols; c++) {
-                // 判断当前列起点的物理方向
                 if (pathType === 'N') {
-                    currentDir = 1; // 电源线绝对不蛇形，永远从上到下
+                    currentDir = 1;
                 } else {
                     if (seq === 1) {
-                        currentDir = 1; // ⭐核心：如果是全新的一根线，无条件从主侧(顶部)开始
+                        currentDir = 1;
                     } else {
-                        currentDir = -currentDir; // ⭐核心：如果这根线是顺延上方的剩余带载能力，必须首尾相接翻转方向
+                        currentDir = -currentDir;
                     }
                 }
                 
@@ -232,23 +228,20 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                     let currentLimit = Math.max(1, (cableId % 2 === 1) ? Math.ceil(baseLimit) : Math.floor(baseLimit));
                     if (count >= currentLimit && !(c === cols - 1 && i === rOrder.length - 1)) { 
                         cableId++; seq = 1; count = 0; 
-                        // 在此处不断开、不改变 direction，列的剩余箱体顺着已经定好的 rOrder 继续走，顺畅切割
                     }
                 }
             }
         }
     } else {
-        // 横向走线逻辑（转置）
         let N = cols; 
         if (N > alpha) {
-            // 一根线带不完一整行：必定切分，绝对不跨行，永远从左往右
             let k = Math.ceil(N / alpha);
             let chunkSizes = [], remaining = N;
             for (let i = 0; i < k; i++) { let sz = Math.ceil(remaining / (k - i)); chunkSizes.push(sz); remaining -= sz; }
             let cableId = 1;
             for (let r = 0; r < rows; r++) {
                 let cOrder = [];
-                for (let c = 0; c < cols; c++) cOrder.push(c); // 永远从左往右
+                for (let c = 0; c < cols; c++) cOrder.push(c);
                 
                 let cIdx = 0;
                 for (let i = 0; i < k; i++) {
@@ -258,22 +251,21 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                 }
             }
         } else {
-            // 一根线可以带载 >= 1整行：可能存在跨行情况
             let ratio = alpha / N, floorRatio = Math.floor(ratio);
             let stepRows = (ratio - floorRatio) < 0.5 ? floorRatio : floorRatio + 0.5;
             let baseLimit = stepRows * N; 
             
             let cableId = 1, seq = 1, count = 0;
-            let currentDir = 1; // 1代表从左往右，-1代表从右往左
+            let currentDir = 1;
             
             for (let r = 0; r < rows; r++) {
                 if (pathType === 'N') {
-                    currentDir = 1; // 电源线绝对不蛇形
+                    currentDir = 1;
                 } else {
                     if (seq === 1) {
-                        currentDir = 1; // ⭐核心：全新网线无条件回到首发端 (左侧)
+                        currentDir = 1;
                     } else {
-                        currentDir = -currentDir; // ⭐核心：顺延带载则折返走S
+                        currentDir = -currentDir;
                     }
                 }
                 
@@ -365,8 +357,8 @@ function computeSystem() {
     let totalResH = useRows * h + (hasHalfRow ? h/2 : 0);
     
     document.getElementById('statsGrid').innerHTML = `
-        <div class="stat-card"><div class="stat-label">总分辨率</div><div class="stat-value">${totalResW}×${Math.floor(totalResH)}</div></div>
-        <div class="stat-card"><div class="stat-label">大屏宽高</div><div class="stat-value">${useCols} × ${useRows + (hasHalfRow ? 0.5 : 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">🖥️ 总分辨率</div><div class="stat-value">${totalResW}×${Math.floor(totalResH)}</div></div>
+        <div class="stat-card"><div class="stat-label"> ▦  大屏宽高</div><div class="stat-value">${useCols} × ${useRows + (hasHalfRow ? 0.5 : 0)}</div></div>
         <div class="stat-card"><div class="stat-label">🔴 主电源数</div><div class="stat-value" style="color:#ff7e6e;">${totalPower} 根</div></div>
         <div class="stat-card"><div class="stat-label">🔵 主网线数</div><div class="stat-value" style="color:#6bc8ff;">${totalPort} 根</div></div>
         <div class="stat-card"><div class="stat-label">⚡ 单电源线带载</div><div class="stat-value">${maxPowerLoadActual} / ${alphaPower}</div></div>
@@ -405,6 +397,7 @@ function renderDynamicVisual(matrix) {
     document.getElementById('cabVisual').innerHTML = html;
 }
 
+// ======================= 优化后的核心走线绘制函数 =======================
 function drawCablingLines() {
     let container = document.querySelector('.matrix-visual');
     if (!container || !lastMatrix) return;
@@ -423,7 +416,10 @@ function drawCablingLines() {
         container.appendChild(svg);
     }
     svg.innerHTML = '';
+    
+    let direction = document.getElementById('routeDirectionSelect').value;
     let powerGroups = {}, portGroups = {};
+    
     for (let r = 0; r < lastMatrix.length; r++) {
         for (let c = 0; c < lastMatrix[0].length; c++) {
             let cell = lastMatrix[r][c];
@@ -431,31 +427,103 @@ function drawCablingLines() {
             if (!el) continue;
             let cx = el.offsetLeft + el.offsetWidth/2;
             let cy = el.offsetTop + el.offsetHeight/2;
+            
             let pMatch = cell.powerLabel.match(/P(\d+)-(\d+)/);
             if (pMatch) {
                 let id = pMatch[1], seq = parseInt(pMatch[2]);
                 if (!powerGroups[id]) powerGroups[id] = [];
-                powerGroups[id].push({ seq, x: cx - 14, y: cy - 8 });
+                powerGroups[id].push({ seq, x: cx - 14, y: cy - 8, r: r, c: c });
             }
             let dMatch = cell.portLabel.match(/D(\d+)-(\d+)/);
             if (dMatch) {
                 let id = dMatch[1], seq = parseInt(dMatch[2]);
                 if (!portGroups[id]) portGroups[id] = [];
-                portGroups[id].push({ seq, x: cx + 14, y: cy + 8 });
+                portGroups[id].push({ seq, x: cx + 14, y: cy + 8, r: r, c: c });
             }
         }
     }
+    
     const drawGroup = (groups, color, fillColor) => {
         for (let id in groups) {
-            let pts = groups[id].sort((a,b)=>a.seq - b.seq);
+            let pts = groups[id].sort((a,b) => a.seq - b.seq);
             if (!pts.length) continue;
+            
             let circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
             circle.setAttribute("cx", pts[0].x); circle.setAttribute("cy", pts[0].y);
             circle.setAttribute("r", "5"); circle.setAttribute("fill", fillColor);
             svg.appendChild(circle);
+            
             if (pts.length > 1) {
                 let d = `M ${pts[0].x} ${pts[0].y}`;
-                for (let i=1; i<pts.length; i++) d += ` L ${pts[i].x} ${pts[i].y}`;
+                for (let i = 1; i < pts.length; i++) {
+                    let p1 = pts[i-1];
+                    let p2 = pts[i];
+                    
+if (direction === 'vertical' && p1.c !== p2.c) {
+    // 获取起点和终点所在屏体元素的边界，计算出缝隙中央的 x 坐标
+    let startEl = container.querySelector(`[data-row="${p1.r}"][data-col="${p1.c}"]`);
+    let endEl = container.querySelector(`[data-row="${p2.r}"][data-col="${p2.c}"]`);
+    if (startEl && endEl) {
+        let startRect = startEl.getBoundingClientRect();
+        let endRect = endEl.getBoundingClientRect();
+        let containerRect = container.getBoundingClientRect();
+        
+        // 缝隙中央 x = 左侧屏右边界 + 缝隙宽度的一半
+        let leftCol = Math.min(p1.c, p2.c);
+        let leftEl = container.querySelector(`[data-row="0"][data-col="${leftCol}"]`);
+        let rightEl = container.querySelector(`[data-row="0"][data-col="${leftCol+1}"]`);
+        if (leftEl && rightEl) {
+            let leftRect = leftEl.getBoundingClientRect();
+            let rightRect = rightEl.getBoundingClientRect();
+            let gapX = (leftRect.right + rightRect.left) / 2 - containerRect.left;
+            
+            // 路径：起点 → 水平到 gapX → 垂直移动到目标y → 水平到终点x
+            d += ` L ${gapX} ${p1.y} L ${gapX} ${p2.y} L ${p2.x} ${p2.y}`;
+        } else {
+            // 降级方案：仍使用中点
+            let x_gap = (p1.x + p2.x) / 2;
+            d += ` L ${x_gap} ${p1.y} L ${x_gap} ${p2.y} L ${p2.x} ${p2.y}`;
+        }
+    } else {
+        let x_gap = (p1.x + p2.x) / 2;
+        d += ` L ${x_gap} ${p1.y} L ${x_gap} ${p2.y} L ${p2.x} ${p2.y}`;
+    }
+}
+else if (direction === 'horizontal' && p1.r !== p2.r) {
+    // 获取起点和终点所在屏体的行边界，计算两行之间的缝隙中央 Y 坐标
+    let startEl = container.querySelector(`[data-row="${p1.r}"][data-col="${p1.c}"]`);
+    let endEl = container.querySelector(`[data-row="${p2.r}"][data-col="${p2.c}"]`);
+    if (startEl && endEl) {
+        let startRect = startEl.getBoundingClientRect();
+        let endRect = endEl.getBoundingClientRect();
+        let containerRect = container.getBoundingClientRect();
+        
+        // 确定上方的行索引（较小行号）
+        let topRow = Math.min(p1.r, p2.r);
+        let bottomRow = topRow + 1;
+        let topEl = container.querySelector(`[data-row="${topRow}"][data-col="0"]`);
+        let bottomEl = container.querySelector(`[data-row="${bottomRow}"][data-col="0"]`);
+        if (topEl && bottomEl) {
+            let topRect = topEl.getBoundingClientRect();
+            let bottomRect = bottomEl.getBoundingClientRect();
+            // 缝隙中央 Y = 上方屏体底部 + (缝隙高度/2)
+            let gapY = (topRect.bottom + bottomRect.top) / 2 - containerRect.top;
+            
+            d += ` L ${p1.x} ${gapY} L ${p2.x} ${gapY} L ${p2.x} ${p2.y}`;
+        } else {
+            let y_gap = (p1.y + p2.y) / 2;
+            d += ` L ${p1.x} ${y_gap} L ${p2.x} ${y_gap} L ${p2.x} ${p2.y}`;
+        }
+    } else {
+        let y_gap = (p1.y + p2.y) / 2;
+        d += ` L ${p1.x} ${y_gap} L ${p2.x} ${y_gap} L ${p2.x} ${p2.y}`;
+    }
+}
+else {
+                        // 同列或同行相邻：直接拉直线
+                        d += ` L ${p2.x} ${p2.y}`;
+                    }
+                }
                 let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 path.setAttribute("d", d); path.setAttribute("stroke", color);
                 path.setAttribute("stroke-width", "2.5"); path.setAttribute("fill", "none");
