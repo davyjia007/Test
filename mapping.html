@@ -67,6 +67,7 @@
         /* A4 横向页面：1120×794，屏幕即所见，导出即所得 */
         .a4-page { width:1120px; height:794px; background:#0a0c12; border:1px solid #1e2a3a; border-radius:12px; padding:16px 20px; margin-bottom:20px; overflow:hidden; position:relative; flex-shrink:0; }
         .a4-page-title { color:#22d3ee; font-size:0.82rem; font-weight:700; margin-bottom:10px; border-left:3px solid #22d3ee; padding-left:10px; letter-spacing:1px; }
+        .a4-page-subtitle { display:block; margin-top:4px; font-size:0.68rem; color:#9aa6b5; font-weight:600; letter-spacing:0; }
         .a4-cabling { flex:1; overflow:hidden; text-align:center; }
         .right-panel { overflow-x:auto; }
         .matrix-visual { display:inline-grid; gap:14px; background:#111520; padding:24px; border-radius:18px; position:relative; }
@@ -233,7 +234,7 @@
 
         <!-- A4 Page 2: Power Mapping -->
         <div class="a4-page" id="a4page2">
-            <div class="a4-page-title">Power Mapping</div>
+            <div class="a4-page-title">Power Mapping<span class="a4-page-subtitle" id="powerMappingSpecLine"></span></div>
             <div class="a4-cabling"><div id="powerVisual"></div></div>
         </div>
 
@@ -416,6 +417,53 @@ function getMaxPowerLoad() {
     let val = document.getElementById('voltageSelect').value;
     let parts = val.split('|'); 
     return parseInt(parts[0], 10) * parseInt(parts[1], 10); 
+}
+
+function formatDecimal(value) {
+    if (!Number.isFinite(value)) return '0';
+    if (Math.abs(value - Math.round(value)) < 0.001) return String(Math.round(value));
+    return value.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function getScreenSizeLabel() {
+    const cols = parseInt(document.getElementById('customCols')?.value, 10) || (lastMatrix?.[0]?.length || 0);
+    const rows = parseInt(document.getElementById('customRows')?.value, 10) || (lastMatrix?.length || 0);
+    const hasHalfRow = !!document.getElementById('addHalfRowCheckbox')?.checked;
+    return `${cols} x ${formatDecimal(rows + (hasHalfRow ? 0.5 : 0))}`;
+}
+
+function getPowerSpecLabel() {
+    const val = document.getElementById('voltageSelect')?.value || '220|16';
+    const [voltage, current] = val.split('|').map(part => parseInt(part, 10) || 0);
+    return `${voltage}V ${current}A/${getActualMainPowerLoad()}W`;
+}
+
+function getSignalSpecLabel() {
+    return (document.getElementById('bitRateSelect')?.value || '').toString().toUpperCase();
+}
+
+function getActualMainPowerLoad() {
+    const unitPower = getFullPower();
+    if (!lastMatrix?.length) {
+        const panelsPerLine = Math.max(1, Math.floor(getMaxPowerLoad() / Math.max(1, unitPower)));
+        return Math.round(unitPower * panelsPerLine);
+    }
+    const loads = new Map();
+    lastMatrix.flat().forEach(cell => {
+        const id = (cell.powerLabel || '').split('-')[0];
+        if (!id) return;
+        const load = cell.type === "Half" ? unitPower * 0.5 : unitPower;
+        loads.set(id, (loads.get(id) || 0) + load);
+    });
+    return Math.round(Math.max(...loads.values(), 0));
+}
+
+function getPowerMappingSpecLabel() {
+    return getPowerSpecLabel();
+}
+
+function getProcessorSpecLabel() {
+    return getSignalSpecLabel();
 }
 
 
@@ -1054,6 +1102,8 @@ function computeSystem() {
     document.getElementById('maxPixelsSpan').innerText = maxPixels.toLocaleString();
     document.getElementById('maxPowerSpan').innerText = maxPower;
     document.getElementById('unitPowerSpan').innerText = unitPower;
+    const powerMappingSpecLine = document.getElementById('powerMappingSpecLine');
+    if (powerMappingSpecLine) powerMappingSpecLine.textContent = getPowerMappingSpecLabel();
     _lastControllerPlan = portPlan;
     renderDynamicVisual(lastMatrix);
     setTimeout(drawCablingLines, 100);
@@ -2212,7 +2262,7 @@ function renderProcessorCanvases() {
         html += `<div class="canvas-card">
             <div class="canvas-card-header">
                 <span class="canvas-card-title">${controllerLabel}</span>
-                <span class="canvas-card-meta">${canvasMeta.meta}</span>
+                <span class="canvas-card-meta">${canvasMeta.meta} - ${getProcessorSpecLabel()}</span>
             </div>
             ${stageGrid}<svg id="${stageId}-svg" style="position:absolute;inset:0;width:${stageWidth}px;height:${stageHeight}px;pointer-events:none;z-index:3;">${paths}</svg></div>
         </div>`;
@@ -2682,8 +2732,7 @@ function getPdfStatsData() {
     const cols = lastMatrix[0]?.length || 0;
     const totalResW = cols * (currentProductObj.pixelW || 0);
     const totalResH = lastMatrix.reduce((sum, row) => sum + (row[0]?.pixelH || currentProductObj.pixelH || 0), 0);
-    const screenRows = document.getElementById('customRows')?.value || rows;
-    const screenCols = document.getElementById('customCols')?.value || cols;
+    const screenSize = getScreenSizeLabel();
     const canvas = _lastControllerPlan?.canvas || getCurrentMasterCanvas();
     const powerIds = new Set();
     const dataIds = new Set();
@@ -2726,7 +2775,7 @@ function getPdfStatsData() {
         ['Main Power', `${powerIds.size}`],
         ['Short Power', `${powerSeg.shortCount}`],
         ['Power Jumpers', `${powerSeg.jumperCount}`],
-        ['Screen Size', `${screenCols} x ${screenRows}`],
+        ['Screen Size', screenSize],
         ['Processors', `${_lastControllerPlan?.controllerSummaries?.length || 0}`],
         ['Main Data', `${dataIds.size}`],
         ['Short Data', `${dataSeg.shortCount}`],
@@ -2894,6 +2943,13 @@ function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
     pdf.setTextColor(17, 24, 39);
     pdf.text(pageTitle, margin, 10);
     let top = 16;
+    if (mode === 'power') {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(getPowerMappingSpecLabel(), margin, 15);
+        top = 20;
+    }
     if (includeStats) top += pdfDrawStats(pdf, margin, top, PW - margin * 2) + 6;
     const layout = pdfGetMatrixLayout(lastMatrix, margin, top, PW - margin * 2, PH - top - margin);
     const direction = document.getElementById('routeDirectionSelect').value;
@@ -3056,8 +3112,9 @@ function pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH) {
     pdf.setFontSize(7);
     pdf.setTextColor(100, 116, 139);
     pdf.text(pageData.meta, margin, 15);
+    pdf.text(getProcessorSpecLabel(), margin, 19);
 
-    const top = 20;
+    const top = 24;
     const gap = 0.28;
     const availableW = PW - margin * 2;
     const availableH = PH - top - margin;
