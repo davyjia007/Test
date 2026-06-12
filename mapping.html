@@ -57,10 +57,12 @@
     border-color: #facc15;
 }
 
-        .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-bottom:18px; background:#0f1320; border-radius:20px; padding:14px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(5,minmax(150px,1fr)); gap:10px; margin-bottom:18px; background:#0f1320; border-radius:20px; padding:14px; }
         .stat-card { border-left:2px solid #22d3ee; padding:6px 12px; background:rgba(0,0,0,0.2); border-radius:8px; }
-        .stat-label { font-size:0.68rem; color:#9aa6b5; text-transform:uppercase; margin-bottom:2px;}
+        .stat-label { font-size:0.68rem; color:#9aa6b5; text-transform:none; margin-bottom:2px;}
         .stat-value { font-size:0.95rem; font-weight:700; color:#fff; }
+        .stat-card.stat-pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:center; }
+        .stat-item + .stat-item { border-left:1px solid rgba(148,163,184,0.22); padding-left:10px; }
         .cabling-canvas { background:#0a0c12; border-radius:20px; padding:20px; overflow-x:auto; margin-bottom:16px; border:1px solid #1e2a3a; text-align:center; }
         /* A4 横向页面：1120×794，屏幕即所见，导出即所得 */
         .a4-page { width:1120px; height:794px; background:#0a0c12; border:1px solid #1e2a3a; border-radius:12px; padding:16px 20px; margin-bottom:20px; overflow:hidden; position:relative; flex-shrink:0; }
@@ -91,7 +93,7 @@
         .btn-secondary { background:#2d3e5f; border:none; padding:8px 12px; border-radius:28px; font-weight:bold; color:#fff; cursor:pointer; margin-top:6px; font-size:0.75rem; width:100%; }
         .warning-tip { font-size: 11px; color: #ffaa66; background: #2a1e1a; border-radius: 14px; padding: 8px; text-align: center; margin: 10px 0; display: none; border-left: 3px solid #ff8866; }
         .legend-bar { display:flex; gap:20px; justify-content:flex-start; margin:8px 0 12px; font-size:11px; background:#0b0f17; padding:6px 12px; border-radius:28px; width:fit-content; }
-        @media (max-width:780px) { .design-dashboard { grid-template-columns:1fr; } .cab-module { width:80px; } }
+        @media (max-width:780px) { .design-dashboard { grid-template-columns:1fr; } .stats-grid { grid-template-columns:1fr; } .cab-module { width:80px; } }
         .custom-badge { background:#22d3ee20; padding:2px 8px; border-radius:20px; font-size:10px; margin-left:8px; }
         .info-muted { font-size:0.7rem; color:#6b7a8f; text-align:center; margin-top:12px; padding:6px; background:#0a0e18; border-radius:20px; }
         #cablingSvg path { opacity: 0.7; }
@@ -115,7 +117,7 @@
         .pdf-page-title { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:18px; border-bottom:1px solid #d8e0eb; padding-bottom:10px; }
         .pdf-page-title h2 { font-size:24px; color:#111827; margin:0; }
         .pdf-page-title span { color:#64748b; font-size:13px; }
-        .pdf-page .stats-grid { grid-template-columns:repeat(4,1fr); }
+        .pdf-page .stats-grid { grid-template-columns:repeat(5,1fr); }
         .pdf-page .cabling-canvas { overflow:visible; }
         .pdf-page .canvas-cards { overflow:visible; gap:16px; }
         .pdf-page .canvas-card { transform-origin:top left; }
@@ -1032,16 +1034,11 @@ function computeSystem() {
     let totalResH = useRows * h + (hasHalfRow ? h/2 : 0);
    
     document.getElementById('statsGrid').innerHTML = `
-        <div class="stat-card"><div class="stat-label">Total Resolution</div><div class="stat-value">${totalResW}x${Math.floor(totalResH)}</div></div>
-        <div class="stat-card"><div class="stat-label">Master Canvas</div><div class="stat-value">${portPlan.canvas.key} <span style="font-size:0.7em;color:#9aa6b5">${portPlan.canvas.width}x${portPlan.canvas.height}</span></div></div>
-        <div class="stat-card"><div class="stat-label">Main Power</div><div class="stat-value" style="color:#ff7e6e;">${totalPowerCables}</div></div>
-        <div class="stat-card"><div class="stat-label">Short Power</div><div class="stat-value" style="color:#ffb4a8;">${powerSegments.shortCount}</div></div>
-        <div class="stat-card"><div class="stat-label">Power Jumpers</div><div class="stat-value" style="color:#ff7e6e;">${powerSegments.jumperCount}</div></div>
-        <div class="stat-card"><div class="stat-label">Screen Size</div><div class="stat-value">${useCols} x ${useRows + (hasHalfRow ? 0.5 : 0)}</div></div>
-        <div class="stat-card"><div class="stat-label">Processors</div><div class="stat-value" style="color:#fde68a;">${portPlan.controllerSummaries.length}</div></div>
-        <div class="stat-card"><div class="stat-label">Main Data</div><div class="stat-value" style="color:#6bc8ff;">${totalPortCables}</div></div>
-        <div class="stat-card"><div class="stat-label">Short Data</div><div class="stat-value" style="color:#9ddcff;">${portSegments.shortCount}</div></div>
-        <div class="stat-card"><div class="stat-label">Data Jumpers</div><div class="stat-value" style="color:#46b7ff;">${portSegments.jumperCount}</div></div>
+        <div class="stat-card stat-pair"><div class="stat-item"><div class="stat-label">Total Resolution</div><div class="stat-value">${totalResW}x${Math.floor(totalResH)}</div></div><div class="stat-item"><div class="stat-label">Screen Size</div><div class="stat-value">${useCols} x ${useRows + (hasHalfRow ? 0.5 : 0)}</div></div></div>
+        <div class="stat-card stat-pair"><div class="stat-item"><div class="stat-label">Master Canvas</div><div class="stat-value">${portPlan.canvas.key} <span style="font-size:0.7em;color:#9aa6b5">${portPlan.canvas.width}x${portPlan.canvas.height}</span></div></div><div class="stat-item"><div class="stat-label">Processors</div><div class="stat-value" style="color:#fde68a;">${portPlan.controllerSummaries.length}</div></div></div>
+        <div class="stat-card stat-pair"><div class="stat-item"><div class="stat-label">Main Power</div><div class="stat-value" style="color:#ff7e6e;">${totalPowerCables}</div></div><div class="stat-item"><div class="stat-label">Main Data</div><div class="stat-value" style="color:#6bc8ff;">${totalPortCables}</div></div></div>
+        <div class="stat-card stat-pair"><div class="stat-item"><div class="stat-label">Short Power</div><div class="stat-value" style="color:#ffb4a8;">${powerSegments.shortCount}</div></div><div class="stat-item"><div class="stat-label">Short Data</div><div class="stat-value" style="color:#9ddcff;">${portSegments.shortCount}</div></div></div>
+        <div class="stat-card stat-pair"><div class="stat-item"><div class="stat-label">Power Jumpers</div><div class="stat-value" style="color:#ff7e6e;">${powerSegments.jumperCount}</div></div><div class="stat-item"><div class="stat-label">Data Jumpers</div><div class="stat-value" style="color:#46b7ff;">${portSegments.jumperCount}</div></div></div>
     `;
 
     document.getElementById('maxPixelsSpan').innerText = maxPixels.toLocaleString();
@@ -2601,7 +2598,7 @@ function pdfGetMatrixLayout(matrix, x, y, w, h) {
     });
     const ratioSum = rowRatios.reduce((sum, value) => sum + value, 0);
     const baseNoGap = Math.min(w / Math.max(1, cols), h / Math.max(0.1, ratioSum));
-    const gap = Math.max(0.8, Math.min(1.6, baseNoGap * 0.1));
+    const gap = Math.max(1.0, Math.min(2.8, baseNoGap * 0.16));
     const cellW = Math.min(
         (w - gap * Math.max(0, cols - 1)) / Math.max(1, cols),
         (h - gap * Math.max(0, rows - 1)) / Math.max(0.1, ratioSum)
@@ -2689,28 +2686,43 @@ function getPdfStatsData() {
 }
 
 function pdfDrawStats(pdf, x, y, w) {
-    const cards = getPdfStatsData();
-    if (!cards.length) return 0;
+    const items = getPdfStatsData();
+    if (!items.length) return 0;
+    const groups = [
+        [items[0], items[5]],
+        [items[1], items[6]],
+        [items[2], items[7]],
+        [items[3], items[8]],
+        [items[4], items[9]]
+    ];
     const cols = 5;
     const gap = 2.2;
     const cardW = (w - gap * (cols - 1)) / cols;
     const cardH = 12;
-    cards.forEach(([label, value], index) => {
-        const cx = x + (index % cols) * (cardW + gap);
-        const cy = y + Math.floor(index / cols) * (cardH + gap);
+    groups.forEach((group, index) => {
+        const cx = x + index * (cardW + gap);
+        const cy = y;
         pdf.setDrawColor(216, 224, 235);
         pdf.setFillColor(248, 250, 252);
         pdf.roundedRect(cx, cy, cardW, cardH, 2, 2, 'FD');
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(5.4);
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(label, cx + 2, cy + 4.2);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8);
-        pdf.setTextColor(17, 24, 39);
-        pdf.text(value, cx + 2, cy + 9.2);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.15);
+        pdf.line(cx + cardW / 2, cy + 2, cx + cardW / 2, cy + cardH - 2);
+        group.forEach((entry, col) => {
+            if (!entry) return;
+            const [label, value] = entry;
+            const itemX = cx + col * (cardW / 2) + 2;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(4.9);
+            pdf.setTextColor(100, 116, 139);
+            pdf.text(label, itemX, cy + 4.2);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(6.8);
+            pdf.setTextColor(17, 24, 39);
+            pdf.text(value, itemX, cy + 9.0);
+        });
     });
-    return Math.ceil(cards.length / cols) * cardH + (Math.ceil(cards.length / cols) - 1) * gap;
+    return cardH;
 }
 
 function pdfPathPoints(p1, p2, laneOffset, direction) {
@@ -2748,20 +2760,79 @@ function pdfPathPoints(p1, p2, laneOffset, direction) {
     return [[p1.x, p1.y], [p2.x, p2.y]];
 }
 
-function pdfDrawPolyline(pdf, points, color, width) {
+function pdfPowerPathPoints(p1, p2, laneOffset, direction) {
+    const mid = (a, b) => (a + b) / 2;
+    const mainInset = 0.24;
+    const sideInset = 0.18;
+    if (direction === 'vertical') {
+        if (p1.c === p2.c && p1.r !== p2.r) {
+            const down = p2.r > p1.r;
+            const startY = down ? p1.y + p1.box.height * mainInset : p1.y - p1.box.height * mainInset;
+            const endY = down ? p2.y - p2.box.height * mainInset : p2.y + p2.box.height * mainInset;
+            return [[p1.x, startY], [p2.x, endY]];
+        }
+        if (p1.c !== p2.c) {
+            const right = p2.c > p1.c;
+            const startX = right ? p1.box.right - p1.box.width * sideInset : p1.box.left + p1.box.width * sideInset;
+            const endX = right ? p2.box.left + p2.box.width * sideInset : p2.box.right - p2.box.width * sideInset;
+            const seamX = right ? mid(p1.box.right, p2.box.left) : mid(p1.box.left, p2.box.right);
+            const startY = p1.y + laneOffset;
+            const endY = p2.y + laneOffset;
+            return p1.r === p2.r
+                ? [[startX, startY], [seamX, startY], [endX, startY]]
+                : [[startX, startY], [seamX, startY], [seamX, endY], [endX, endY]];
+        }
+    } else {
+        if (p1.r === p2.r && p1.c !== p2.c) {
+            const right = p2.c > p1.c;
+            const startX = right ? p1.x + p1.box.width * mainInset : p1.x - p1.box.width * mainInset;
+            const endX = right ? p2.x - p2.box.width * mainInset : p2.x + p2.box.width * mainInset;
+            return [[startX, p1.y + laneOffset], [endX, p2.y + laneOffset]];
+        }
+        if (p1.r !== p2.r) {
+            const down = p2.r > p1.r;
+            const startY = down ? p1.box.bottom - p1.box.height * sideInset : p1.box.top + p1.box.height * sideInset;
+            const endY = down ? p2.box.top + p2.box.height * sideInset : p2.box.bottom - p2.box.height * sideInset;
+            const seamY = down ? mid(p1.box.bottom, p2.box.top) : mid(p1.box.top, p2.box.bottom);
+            const startX = p1.x + laneOffset;
+            const endX = p2.x + laneOffset;
+            return p1.c === p2.c
+                ? [[startX, startY], [startX, seamY], [startX, endY]]
+                : [[startX, startY], [startX, seamY], [endX, seamY], [endX, endY]];
+        }
+    }
+    return [[p1.x, p1.y], [p2.x, p2.y]];
+}
+
+function pdfDrawPolyline(pdf, points, color, width, trimEnd = 0) {
     if (!points || points.length < 2) return;
+    const drawPoints = points.map(point => [point[0], point[1]]);
+    if (trimEnd > 0 && drawPoints.length >= 2) {
+        const last = drawPoints[drawPoints.length - 1];
+        const prev = drawPoints[drawPoints.length - 2];
+        const dx = last[0] - prev[0];
+        const dy = last[1] - prev[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const trim = Math.min(trimEnd, len * 0.65);
+        drawPoints[drawPoints.length - 1] = [last[0] - dx / len * trim, last[1] - dy / len * trim];
+    }
     pdfSetColor(pdf, 'setDrawColor', color, [17, 24, 39]);
     pdf.setLineWidth(width);
-    for (let i = 1; i < points.length; i++) pdf.line(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1]);
+    for (let i = 1; i < drawPoints.length; i++) pdf.line(drawPoints[i - 1][0], drawPoints[i - 1][1], drawPoints[i][0], drawPoints[i][1]);
 }
 
 function pdfDrawArrowHead(pdf, p1, p2, color, size) {
     const angle = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
-    const a1 = angle + Math.PI * 0.82;
-    const a2 = angle - Math.PI * 0.82;
-    const pts = [p2, [p2[0] + Math.cos(a1) * size, p2[1] + Math.sin(a1) * size], [p2[0] + Math.cos(a2) * size, p2[1] + Math.sin(a2) * size]];
+    const wing = size * 0.82;
+    const back = size * 1.45;
+    const baseX = p2[0] - Math.cos(angle) * back;
+    const baseY = p2[1] - Math.sin(angle) * back;
+    const normalX = -Math.sin(angle);
+    const normalY = Math.cos(angle);
+    const left = [baseX + normalX * wing, baseY + normalY * wing];
+    const right = [baseX - normalX * wing, baseY - normalY * wing];
     pdfSetColor(pdf, 'setFillColor', color, [232, 56, 44]);
-    pdf.triangle(pts[0][0], pts[0][1], pts[1][0], pts[1][1], pts[2][0], pts[2][1], 'F');
+    pdf.triangle(p2[0], p2[1], left[0], left[1], right[0], right[1], 'F');
 }
 
 function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
@@ -2832,9 +2903,10 @@ function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
             points.sort((a, b) => a.seq - b.seq);
             const stroke = powerTone ? powerMappingTone(id).line : color;
             for (let i = 1; i < points.length; i++) {
-                const pts = pdfPathPoints(points[i - 1], points[i], laneOffset, direction);
-                pdfDrawPolyline(pdf, pts, stroke, mode === 'power' ? 0.55 : 0.62);
-                if (arrow && pts.length >= 2) pdfDrawArrowHead(pdf, pts[pts.length - 2], pts[pts.length - 1], stroke, 1.25);
+                const pts = arrow ? pdfPowerPathPoints(points[i - 1], points[i], laneOffset, direction) : pdfPathPoints(points[i - 1], points[i], laneOffset, direction);
+                const arrowSize = 1.25;
+                pdfDrawPolyline(pdf, pts, stroke, mode === 'power' ? 0.55 : 0.62, arrow ? arrowSize * 1.15 : 0);
+                if (arrow && pts.length >= 2) pdfDrawArrowHead(pdf, pts[pts.length - 2], pts[pts.length - 1], stroke, arrowSize);
             }
         });
     };
@@ -2901,12 +2973,22 @@ function getProcessorPdfPageData() {
         const ports = [...new Set([...occupied.values()].map(item => parseInt(item.cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10)))].sort((first, second) => first - second);
         const portIndex = new Map(ports.map((port, index) => [port, index]));
         const pieceLabel = pieces.map(piece => `Rows ${piece.r + 1}-${piece.r + piece.rows} - Cols ${piece.c + 1}-${piece.c + piece.cols}`).join(' / ');
+        const occupiedCells = [...occupied.values()];
+        const minOccupiedRow = Math.min(...occupiedCells.map(item => item.localRow));
+        const maxOccupiedRow = Math.max(...occupiedCells.map(item => item.localRow));
+        const minOccupiedCol = Math.min(...occupiedCells.map(item => item.localCol));
+        const maxOccupiedCol = Math.max(...occupiedCells.map(item => item.localCol));
+        const actualCols = Math.max(1, maxOccupiedCol - minOccupiedCol + 1);
+        const actualRows = rowRatios.slice(minOccupiedRow, maxOccupiedRow + 1).reduce((sum, ratio) => sum + ratio, 0);
+        const actualPixelW = occupiedCells.reduce((max, item) => Math.max(max, (item.localCol - minOccupiedCol + 1) * (item.cell.pixelW || currentProductObj.pixelW || unitWidth)), 0);
+        const actualPixelH = rowRatios.slice(minOccupiedRow, maxOccupiedRow + 1).reduce((sum, ratio) => sum + ratio * unitWidth, 0);
+        const actualRowsText = Number.isInteger(actualRows) ? actualRows.toString() : actualRows.toFixed(1).replace(/\.0$/, '');
         return {
             controller,
             displayIndex,
             toneIndex: displayIndex + 1,
             title: `Processor ${displayIndex + 1} canvas`,
-            meta: `${pieceLabel} - screen ${localCols}x${localRows} / canvas ${canvasCols}x${canvasRows} - ${canvas.width}x${canvas.height}`,
+            meta: `${pieceLabel} - actual screen ${actualCols}x${actualRowsText} - actual resolution ${Math.round(actualPixelW)}x${Math.round(actualPixelH)}`,
             canvasCols,
             canvasRows,
             localCols,
