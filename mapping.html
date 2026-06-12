@@ -2018,6 +2018,43 @@ function renderProcessorCanvasesCanvasLegacyUnused() {
     container.innerHTML = html;
 }
 
+function formatProcessorScreenNumber(value) {
+    if (!Number.isFinite(value)) return '0';
+    if (Math.abs(value - Math.round(value)) < 0.001) return String(Math.round(value));
+    return value.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function getProcessorCanvasMeta(pieces, occupied, rowRatios, unitWidth) {
+    const pieceLabel = pieces
+        .map(piece => `Rows ${piece.r + 1}-${piece.r + piece.rows} - Cols ${piece.c + 1}-${piece.c + piece.cols}`)
+        .join(' / ');
+    const occupiedCells = [...occupied.values()];
+    if (!occupiedCells.length) {
+        return {
+            pieceLabel,
+            meta: `${pieceLabel} - actual screen 0x0 - actual resolution 0x0`
+        };
+    }
+    const minOccupiedRow = Math.min(...occupiedCells.map(item => item.localRow));
+    const maxOccupiedRow = Math.max(...occupiedCells.map(item => item.localRow));
+    const minOccupiedCol = Math.min(...occupiedCells.map(item => item.localCol));
+    const maxOccupiedCol = Math.max(...occupiedCells.map(item => item.localCol));
+    const actualPixelW = occupiedCells.reduce((max, item) => Math.max(max, (item.localCol - minOccupiedCol + 1) * (item.cell.pixelW || currentProductObj.pixelW || unitWidth)), 0);
+    const actualPixelH = rowRatios.slice(minOccupiedRow, maxOccupiedRow + 1).reduce((sum, ratio) => sum + ratio * unitWidth, 0);
+    const fullPixelW = currentProductObj.pixelW || unitWidth || 1;
+    const fullPixelH = currentProductObj.pixelH || unitWidth || 1;
+    const actualScreenCols = actualPixelW / fullPixelW;
+    const actualScreenRows = actualPixelH / fullPixelH;
+    return {
+        pieceLabel,
+        actualPixelW,
+        actualPixelH,
+        actualScreenCols,
+        actualScreenRows,
+        meta: `${pieceLabel} - actual screen ${formatProcessorScreenNumber(actualScreenCols)}x${formatProcessorScreenNumber(actualScreenRows)} - actual resolution ${Math.round(actualPixelW)}x${Math.round(actualPixelH)}`
+    };
+}
+
 function renderProcessorCanvases() {
     const container = document.getElementById('processorCanvases');
     if (!container || !_lastControllerPlan || !lastMatrix) {
@@ -2079,17 +2116,19 @@ function renderProcessorCanvases() {
                 }
             }
         });
-        const rowHeights = Array.from({ length: canvasRows }, (_, localRow) => {
+        const rowRatios = Array.from({ length: canvasRows }, (_, localRow) => {
             const rowCells = [...occupied.values()].filter(item => item.localRow === localRow);
             const pixelHeight = rowCells.length
                 ? Math.max(...rowCells.map(item => item.cell.pixelH || currentProductObj.pixelH || unitWidth))
                 : (currentProductObj.pixelH || unitWidth);
-            return Math.max(12, Math.round(cellWidth * (pixelHeight / unitWidth)));
+            return Math.max(0.25, pixelHeight / unitWidth);
         });
+        const rowHeights = rowRatios.map(ratio => Math.max(12, Math.round(cellWidth * ratio)));
         const rowOffsets = [0];
         for (let rowIndex = 0; rowIndex < rowHeights.length; rowIndex++) {
             rowOffsets.push(rowOffsets[rowIndex] + rowHeights[rowIndex] + gridGap);
         }
+        const canvasMeta = getProcessorCanvasMeta(pieces, occupied, rowRatios, unitWidth);
 
         const gridWidth = canvasCols * cellWidth + Math.max(0, canvasCols - 1) * gridGap;
         const gridHeight = rowOffsets[canvasRows] - gridGap;
@@ -2173,7 +2212,7 @@ function renderProcessorCanvases() {
         html += `<div class="canvas-card">
             <div class="canvas-card-header">
                 <span class="canvas-card-title">${controllerLabel}</span>
-                <span class="canvas-card-meta">${pieceLabel} · screen ${localCols}×${localRows}</span>
+                <span class="canvas-card-meta">${canvasMeta.meta}</span>
             </div>
             ${stageGrid}<svg id="${stageId}-svg" style="position:absolute;inset:0;width:${stageWidth}px;height:${stageHeight}px;pointer-events:none;z-index:3;">${paths}</svg></div>
         </div>`;
@@ -2987,23 +3026,13 @@ function getProcessorPdfPageData() {
         });
         const ports = [...new Set([...occupied.values()].map(item => parseInt(item.cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10)))].sort((first, second) => first - second);
         const portIndex = new Map(ports.map((port, index) => [port, index]));
-        const pieceLabel = pieces.map(piece => `Rows ${piece.r + 1}-${piece.r + piece.rows} - Cols ${piece.c + 1}-${piece.c + piece.cols}`).join(' / ');
-        const occupiedCells = [...occupied.values()];
-        const minOccupiedRow = Math.min(...occupiedCells.map(item => item.localRow));
-        const maxOccupiedRow = Math.max(...occupiedCells.map(item => item.localRow));
-        const minOccupiedCol = Math.min(...occupiedCells.map(item => item.localCol));
-        const maxOccupiedCol = Math.max(...occupiedCells.map(item => item.localCol));
-        const actualCols = Math.max(1, maxOccupiedCol - minOccupiedCol + 1);
-        const actualRows = rowRatios.slice(minOccupiedRow, maxOccupiedRow + 1).reduce((sum, ratio) => sum + ratio, 0);
-        const actualPixelW = occupiedCells.reduce((max, item) => Math.max(max, (item.localCol - minOccupiedCol + 1) * (item.cell.pixelW || currentProductObj.pixelW || unitWidth)), 0);
-        const actualPixelH = rowRatios.slice(minOccupiedRow, maxOccupiedRow + 1).reduce((sum, ratio) => sum + ratio * unitWidth, 0);
-        const actualRowsText = Number.isInteger(actualRows) ? actualRows.toString() : actualRows.toFixed(1).replace(/\.0$/, '');
+        const canvasMeta = getProcessorCanvasMeta(pieces, occupied, rowRatios, unitWidth);
         return {
             controller,
             displayIndex,
             toneIndex: displayIndex + 1,
             title: `Processor ${displayIndex + 1} canvas`,
-            meta: `${pieceLabel} - actual screen ${actualCols}x${actualRowsText} - actual resolution ${Math.round(actualPixelW)}x${Math.round(actualPixelH)}`,
+            meta: canvasMeta.meta,
             canvasCols,
             canvasRows,
             localCols,
