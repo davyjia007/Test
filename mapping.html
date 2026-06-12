@@ -160,6 +160,17 @@
         .a4-cabling > div { transform-origin:top left; }
         .a4-page .stats-grid { flex:0 0 auto; margin-bottom:0; }
         .a4-page .canvas-card { margin:0 auto; }
+        .pdf-detail-pages { display:contents; }
+        .pdf-detail-page .stats-grid { grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:8px; }
+        .pdf-detail-page .stat-card { padding:7px 10px; }
+        .pdf-detail-page .stat-label { font-size:0.58rem; }
+        .pdf-detail-page .stat-value { font-size:0.92rem; }
+        .pdf-tile-content { flex:1 1 auto; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
+        .pdf-tile-content > div { transform-origin:top left; }
+        .pdf-tile-visual { margin:0 auto; }
+        .pdf-tile-visual .cab-module { box-shadow:none; }
+        .pdf-tile-visual .power-text,
+        .pdf-tile-visual .port-text { font-size:13px; padding:1px 6px; border-radius:9px; }
 
         .power-matrix-visual .power-text { font-size:15px; font-weight:900; letter-spacing:0.2px; padding:2px 7px; color:#ff4f3d; background:rgba(255,255,255,0.96); border:1px solid rgba(255,79,61,0.22); border-radius:10px; text-shadow:none; box-shadow:0 1px 3px rgba(15,23,42,0.12); }
         .power-matrix-visual .cab-module { justify-content:center; }
@@ -305,6 +316,20 @@ function portFillColor(index, portIndex, rowIndex = 0, colIndex = 0, direction =
     const saturation = Math.max(24, Math.min(82, Math.round(tone.s * 0.58 + c.s * 0.42)));
     if (tone.s === 0) return `hsl(210, ${Math.max(22, c.s - 10)}%, ${lightness}%)`;
     return `hsl(${(tone.h + c.h + 360) % 360}, ${saturation}%, ${lightness}%)`;
+}
+
+function powerMappingTone(labelOrId) {
+    const match = (labelOrId || '').toString().match(/P(\d+)/);
+    const index = match ? Math.max(0, parseInt(match[1], 10) - 1) : 0;
+    const filled = index % 2 === 0;
+    const cycle = Math.floor(index / 2) % 3;
+    const lineLightness = [47, 42, 52][cycle];
+    const borderLightness = [68, 62, 72][cycle];
+    return {
+        fill: filled ? 'hsla(4, 78%, 55%, 0.18)' : 'transparent',
+        border: `hsl(4, 74%, ${borderLightness}%)`,
+        line: `hsl(4, 82%, ${lineLightness}%)`
+    };
 }
 
 function getAllowedMasterCanvases() {
@@ -846,9 +871,10 @@ function assignPortLabelsByControllerCanvas(matrix, maxCap, unitCap, direction) 
     let labels = Array(rows).fill().map(() => Array(cols).fill(''));
     let controllerIds = Array(rows).fill().map(() => Array(cols).fill(0));
     let controllerSummaries = [];
+    let globalPortOffset = 0;
 
     for (let controller of plan.controllers) {
-        let portOffset = 0;
+        let controllerPortCount = 0;
         for (let piece of controller.pieces) {
             let subMatrix = [];
             for (let r = piece.r; r < piece.r + piece.rows; r++) {
@@ -859,15 +885,17 @@ function assignPortLabelsByControllerCanvas(matrix, maxCap, unitCap, direction) 
 
             let localLabels = assignLabelsByStrictRule(subMatrix, maxCap, unitCap, 'S', 'D', direction);
             let localMaxPortId = getMaxPortId(localLabels);
+            let labelOffset = globalPortOffset + controllerPortCount;
             for (let r = 0; r < piece.rows; r++) {
                 for (let c = 0; c < piece.cols; c++) {
-                    labels[piece.r + r][piece.c + c] = offsetPortLabel(localLabels[r][c], portOffset);
+                    labels[piece.r + r][piece.c + c] = offsetPortLabel(localLabels[r][c], labelOffset);
                     controllerIds[piece.r + r][piece.c + c] = controller.id;
                 }
             }
-            portOffset += localMaxPortId;
+            controllerPortCount += localMaxPortId;
         }
-        controllerSummaries.push({ id: controller.id, portCount: portOffset, pieces: controller.pieces.length });
+        globalPortOffset += controllerPortCount;
+        controllerSummaries.push({ id: controller.id, portCount: controllerPortCount, pieces: controller.pieces.length });
     }
 
     return {
@@ -1004,16 +1032,16 @@ function computeSystem() {
     let totalResH = useRows * h + (hasHalfRow ? h/2 : 0);
    
     document.getElementById('statsGrid').innerHTML = `
-        <div class="stat-card"><div class="stat-label">🖥️ 总分辨率</div><div class="stat-value">${totalResW}×${Math.floor(totalResH)}</div></div>
-        <div class="stat-card"><div class="stat-label">📏 大屏宽高</div><div class="stat-value">${useCols} × ${useRows + (hasHalfRow ? 0.5 : 0)}</div></div>
-        <div class="stat-card"><div class="stat-label">🎛️ 主控画布</div><div class="stat-value">${portPlan.canvas.key} <span style="font-size:0.7em;color:#9aa6b5">${portPlan.canvas.width}×${portPlan.canvas.height}</span></div></div>
-        <div class="stat-card"><div class="stat-label">📦 主控数量</div><div class="stat-value" style="color:#fde68a;">${portPlan.controllerSummaries.length} 台</div></div>
-        <div class="stat-card"><div class="stat-label">🔴 主电源线</div><div class="stat-value" style="color:#ff7e6e;">${totalPowerCables} 根</div></div>
-        <div class="stat-card"><div class="stat-label">🔵 主网线</div><div class="stat-value" style="color:#6bc8ff;">${totalPortCables} 根</div></div>
-        <div class="stat-card"><div class="stat-label">🧷 短电源线</div><div class="stat-value" style="color:#ffb4a8;">${powerSegments.shortCount} 根</div></div>
-        <div class="stat-card"><div class="stat-label">🧷 短网线</div><div class="stat-value" style="color:#9ddcff;">${portSegments.shortCount} 根</div></div>
-        <div class="stat-card"><div class="stat-label">↔️ 电源跳线</div><div class="stat-value" style="color:#ff7e6e;">${powerSegments.jumperCount} 根</div></div>
-        <div class="stat-card"><div class="stat-label">↔️ 网线跳线</div><div class="stat-value" style="color:#46b7ff;">${portSegments.jumperCount} 根</div></div>
+        <div class="stat-card"><div class="stat-label">Total Resolution</div><div class="stat-value">${totalResW}x${Math.floor(totalResH)}</div></div>
+        <div class="stat-card"><div class="stat-label">Master Canvas</div><div class="stat-value">${portPlan.canvas.key} <span style="font-size:0.7em;color:#9aa6b5">${portPlan.canvas.width}x${portPlan.canvas.height}</span></div></div>
+        <div class="stat-card"><div class="stat-label">Main Power</div><div class="stat-value" style="color:#ff7e6e;">${totalPowerCables}</div></div>
+        <div class="stat-card"><div class="stat-label">Short Power</div><div class="stat-value" style="color:#ffb4a8;">${powerSegments.shortCount}</div></div>
+        <div class="stat-card"><div class="stat-label">Power Jumpers</div><div class="stat-value" style="color:#ff7e6e;">${powerSegments.jumperCount}</div></div>
+        <div class="stat-card"><div class="stat-label">Screen Size</div><div class="stat-value">${useCols} x ${useRows + (hasHalfRow ? 0.5 : 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">Processors</div><div class="stat-value" style="color:#fde68a;">${portPlan.controllerSummaries.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Main Data</div><div class="stat-value" style="color:#6bc8ff;">${totalPortCables}</div></div>
+        <div class="stat-card"><div class="stat-label">Short Data</div><div class="stat-value" style="color:#9ddcff;">${portSegments.shortCount}</div></div>
+        <div class="stat-card"><div class="stat-label">Data Jumpers</div><div class="stat-value" style="color:#46b7ff;">${portSegments.jumperCount}</div></div>
     `;
 
     document.getElementById('maxPixelsSpan').innerText = maxPixels.toLocaleString();
@@ -1212,16 +1240,16 @@ function drawCablingLines() {
                 let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 path.setAttribute("d", getTopologyPath(pts[i - 1], pts[i], laneOffset));
                 path.setAttribute("stroke", color);
-                path.setAttribute("stroke-width", "3.2");
+                path.setAttribute("stroke-width", "3.8");
                 path.setAttribute("fill", "none");
                 path.setAttribute("stroke-linecap", "round"); path.setAttribute("stroke-linejoin", "round");
-                path.setAttribute("opacity", "0.92");
+                path.setAttribute("opacity", "0.98");
                 svg.appendChild(path);
             }
         }
     };
-    drawGroup(powerGroups, "#ff4f3d", -11);
-    drawGroup(portGroups, "#1e9bff", 11);
+    drawGroup(powerGroups, "#e8382c", -11);
+    drawGroup(portGroups, "#007ee8", 11);
 }
 
 // ======================= Processor Canvas  ?? ?=======================
@@ -1721,7 +1749,8 @@ function renderPowerMapping(matrix) {
         for (let c = 0; c < cols; c++) {
             const cell = matrix[r][c];
             const height = cell.type === "Half" ? halfHeight : fullHeight;
-            html += `<div class="cab-module" data-power-row="${r}" data-power-col="${c}" style="height:${height}px;background:transparent;border:1.5px solid rgba(255,126,110,0.55);box-shadow:none;">
+            const tone = powerMappingTone(cell.powerLabel);
+            html += `<div class="cab-module" data-power-row="${r}" data-power-col="${c}" style="height:${height}px;background:${tone.fill};border:1.5px solid ${tone.border};box-shadow:none;">
                         <div class="power-text">${cell.powerLabel}</div>
                     </div>`;
         }
@@ -1781,14 +1810,26 @@ function drawPowerMappingLines() {
 
     let defs = svg.querySelector('defs');
     if (!defs) { defs = document.createElementNS("http://www.w3.org/2000/svg","defs"); svg.appendChild(defs); }
-    if (!document.getElementById('powerOnlyArrowMarker')) {
-        let m = document.createElementNS("http://www.w3.org/2000/svg","marker");
-        m.id='powerOnlyArrowMarker'; m.setAttribute("viewBox","0 0 10 10"); m.setAttribute("refX","8.5"); m.setAttribute("refY","5");
-        m.setAttribute("markerWidth","6"); m.setAttribute("markerHeight","6"); m.setAttribute("orient","auto-start-reverse");
-        let a = document.createElementNS("http://www.w3.org/2000/svg","path");
-        a.setAttribute("d","M 0 0 L 10 5 L 0 10 z"); a.setAttribute("fill","#ff4f3d");
-        m.appendChild(a); defs.appendChild(m);
-    }
+    const getPowerArrowMarker = (id, color) => {
+        const markerId = `powerOnlyArrowMarker-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+        let marker = document.getElementById(markerId);
+        if (!marker) {
+            marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+            marker.id = markerId;
+            marker.setAttribute("viewBox", "0 0 10 10");
+            marker.setAttribute("refX", "8.5");
+            marker.setAttribute("refY", "5");
+            marker.setAttribute("markerWidth", "6");
+            marker.setAttribute("markerHeight", "6");
+            marker.setAttribute("orient", "auto-start-reverse");
+            const arrow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+            arrow.setAttribute("fill", color);
+            marker.appendChild(arrow);
+            defs.appendChild(marker);
+        }
+        return markerId;
+    };
 
     const powerArrowPath = (previous, current) => {
         const insideRatio = 0.28;
@@ -1815,19 +1856,21 @@ function drawPowerMappingLines() {
             : `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
     };
 
-    Object.values(groups).forEach(points => {
+    Object.entries(groups).forEach(([id, points]) => {
+        const tone = powerMappingTone(id);
+        const markerId = getPowerArrowMarker(id, tone.line);
         points.sort((a, b) => a.seq - b.seq);
         for (let i = 1; i < points.length; i++) {
             const previous = points[i - 1];
             const current = points[i];
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
             path.setAttribute("d", powerArrowPath(previous, current));
-            path.setAttribute("stroke", "#ff4f3d");
+            path.setAttribute("stroke", tone.line);
             path.setAttribute("stroke-width", "3.2");
             path.setAttribute("fill", "none");
             path.setAttribute("stroke-linecap", "round");
             path.setAttribute("stroke-linejoin", "round");
-            path.setAttribute("marker-end", "url(#powerOnlyArrowMarker)");
+            path.setAttribute("marker-end", `url(#${markerId})`);
             path.setAttribute("opacity", "0.9");
             svg.appendChild(path);
         }
@@ -2153,6 +2196,234 @@ function promptCustomPortCapacity() {
     }
 }
 
+function shouldTilePdfMatrix(matrix) {
+    if (!matrix || !matrix.length) return false;
+    const rows = matrix.length;
+    const cols = matrix[0]?.length || 0;
+    return rows * cols > 80 || cols > 12 || rows > 8;
+}
+
+function clearPdfDetailPages() {
+    document.querySelectorAll('.pdf-detail-pages').forEach(node => node.remove());
+    ['a4page1', 'a4page2'].forEach(id => {
+        const page = document.getElementById(id);
+        if (page) delete page.dataset.pdfSkip;
+    });
+}
+
+function getPdfControllerColorMaps(matrix) {
+    const controllerIds = [...new Set(matrix.flat().map(cell => cell.controllerId || 1))].sort((a, b) => a - b);
+    const controllerIndexMap = new Map(controllerIds.map((cid, index) => [cid, index + 1]));
+    const portIndexMap = new Map();
+    controllerIds.forEach(cid => {
+        const ports = [...new Set(matrix.flat()
+            .filter(cell => (cell.controllerId || 1) === cid)
+            .map(cell => parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10)))]
+            .sort((a, b) => a - b);
+        portIndexMap.set(cid, new Map(ports.map((port, index) => [port, index])));
+    });
+    return { controllerIndexMap, portIndexMap };
+}
+
+function createPdfMatrixTile(matrix, rowStart, rowEnd, colStart, colEnd, mode) {
+    const unitWidth = currentProductObj.pixelW || 1;
+    const ratio = (currentProductObj.pixelH || unitWidth) / unitWidth;
+    const baseW = 96;
+    const fullHeight = Math.min(140, Math.max(60, baseW * ratio));
+    const halfHeight = fullHeight / 2;
+    const tileCols = colEnd - colStart;
+    const maps = getPdfControllerColorMaps(matrix);
+    const isPower = mode === 'power';
+    let html = `<div class="matrix-visual pdf-tile-visual ${isPower ? 'pdf-power-tile-visual' : 'pdf-topology-tile-visual'}" data-tile-mode="${mode}" data-row-start="${rowStart}" data-col-start="${colStart}" style="grid-template-columns: repeat(${tileCols}, ${baseW}px);">`;
+    for (let r = rowStart; r < rowEnd; r++) {
+        for (let c = colStart; c < colEnd; c++) {
+            const cell = matrix[r][c];
+            const height = cell.type === 'Half' ? halfHeight : fullHeight;
+            if (isPower) {
+                const tone = powerMappingTone(cell.powerLabel);
+                html += `<div class="cab-module" data-pdf-row="${r}" data-pdf-col="${c}" style="height:${height}px;background:${tone.fill};border:1.5px solid ${tone.border};box-shadow:none;"><div class="power-text">${cell.powerLabel}</div></div>`;
+            } else {
+                const cid = cell.controllerId || 1;
+                const toneIndex = maps.controllerIndexMap.get(cid) || 1;
+                const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
+                const portIdx = maps.portIndexMap.get(cid)?.get(portNum) ?? 0;
+                const fill = portFillColor(toneIndex, portIdx, r, c, document.getElementById('routeDirectionSelect')?.value);
+                html += `<div class="cab-module" data-pdf-row="${r}" data-pdf-col="${c}" style="height:${height}px;background:${fill};"><div class="power-text">${cell.powerLabel}</div><div style="height:12px;"></div><div class="port-text">${cell.portLabel}</div></div>`;
+            }
+        }
+    }
+    html += '</div>';
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    return wrapper.firstElementChild;
+}
+
+function createPdfTilePage(title, rangeText, tile, statsNode) {
+    const page = document.createElement('div');
+    page.className = 'a4-page pdf-detail-page';
+    const pageTitle = document.createElement('div');
+    pageTitle.className = 'a4-page-title';
+    pageTitle.textContent = `${title} ? ${rangeText}`;
+    page.appendChild(pageTitle);
+    if (statsNode) page.appendChild(statsNode.cloneNode(true));
+    const content = document.createElement('div');
+    content.className = 'pdf-tile-content';
+    content.appendChild(tile);
+    page.appendChild(content);
+    return page;
+}
+
+function getPdfTileRanges(matrix, tileCols, tileRows) {
+    const rows = matrix.length;
+    const cols = matrix[0]?.length || 0;
+    const ranges = [];
+    for (let rowStart = 0; rowStart < rows; rowStart += tileRows) {
+        const rowEnd = Math.min(rows, rowStart + tileRows);
+        for (let colStart = 0; colStart < cols; colStart += tileCols) {
+            const colEnd = Math.min(cols, colStart + tileCols);
+            ranges.push({ rowStart, rowEnd, colStart, colEnd });
+        }
+    }
+    return ranges;
+}
+
+function drawPdfTileLines(tile, matrix, mode) {
+    if (!tile) return;
+    const rowStart = parseInt(tile.dataset.rowStart || '0', 10);
+    const colStart = parseInt(tile.dataset.colStart || '0', 10);
+    const rowCount = Math.round(tile.children.length / Math.max(1, parseInt((tile.style.gridTemplateColumns.match(/repeat\((\d+)/) || [0, 1])[1], 10)));
+    const direction = document.getElementById('routeDirectionSelect').value;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.position = 'absolute';
+    svg.style.left = '0';
+    svg.style.top = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '2';
+    tile.style.position = 'relative';
+    tile.appendChild(svg);
+
+    const groupsPower = {};
+    const groupsData = {};
+    for (let r = 0; r < matrix.length; r++) {
+        for (let c = 0; c < matrix[0].length; c++) {
+            const el = tile.querySelector(`[data-pdf-row="${r}"][data-pdf-col="${c}"]`);
+            if (!el) continue;
+            const cell = matrix[r][c];
+            const cx = el.offsetLeft + el.offsetWidth / 2;
+            const cy = el.offsetTop + el.offsetHeight / 2;
+            const box = { left: el.offsetLeft, right: el.offsetLeft + el.offsetWidth, top: el.offsetTop, bottom: el.offsetTop + el.offsetHeight, width: el.offsetWidth, height: el.offsetHeight };
+            const powerMatch = cell.powerLabel.match(/P(\d+)-(\d+)/);
+            if (powerMatch) {
+                const id = `P${powerMatch[1]}`;
+                if (!groupsPower[id]) groupsPower[id] = [];
+                groupsPower[id].push({ seq: parseInt(powerMatch[2], 10), x: direction === 'vertical' ? cx - 12 : cx, y: direction === 'vertical' ? cy : cy - 8, r, c, box });
+            }
+            if (mode === 'topology') {
+                const dataMatch = cell.portLabel.match(/D(\d+)-(\d+)/);
+                if (dataMatch) {
+                    const id = `D${dataMatch[1]}`;
+                    if (!groupsData[id]) groupsData[id] = [];
+                    groupsData[id].push({ seq: parseInt(dataMatch[2], 10), x: direction === 'vertical' ? cx + 12 : cx, y: direction === 'vertical' ? cy : cy + 8, r, c, box });
+                }
+            }
+        }
+    }
+
+    const mid = (a, b) => (a + b) / 2;
+    const pathFor = (p1, p2, laneOffset = 0) => {
+        const ir = 0.34;
+        if (direction === 'vertical') {
+            if (p1.c === p2.c && p1.r !== p2.r) {
+                const down = p2.r > p1.r;
+                return `M ${p1.x} ${down ? p1.y + p1.box.height * ir : p1.y - p1.box.height * ir} L ${p2.x} ${down ? p2.y - p2.box.height * ir : p2.y + p2.box.height * ir}`;
+            }
+            if (p1.c !== p2.c) {
+                const right = p2.c > p1.c;
+                const startX = right ? p1.box.right + 2 : p1.box.left - 2;
+                const endX = right ? p2.box.left - 2 : p2.box.right + 2;
+                const seamX = right ? mid(p1.box.right, p2.box.left) : mid(p1.box.left, p2.box.right);
+                const startY = p1.y + laneOffset;
+                const endY = p2.y + laneOffset;
+                return p1.r === p2.r ? `M ${startX} ${startY} L ${seamX} ${startY} L ${endX} ${startY}` : `M ${startX} ${startY} L ${seamX} ${startY} L ${seamX} ${endY} L ${endX} ${endY}`;
+            }
+        } else {
+            if (p1.r === p2.r && p1.c !== p2.c) {
+                const right = p2.c > p1.c;
+                const startX = right ? p1.x + p1.box.width * ir : p1.x - p1.box.width * ir;
+                const endX = right ? p2.x - p2.box.width * ir : p2.x + p2.box.width * ir;
+                return `M ${startX} ${p1.y + laneOffset} L ${endX} ${p2.y + laneOffset}`;
+            }
+            if (p1.r !== p2.r) {
+                const down = p2.r > p1.r;
+                const startY = down ? p1.box.bottom + 2 : p1.box.top - 2;
+                const endY = down ? p2.box.top - 2 : p2.box.bottom + 2;
+                const seamY = down ? mid(p1.box.bottom, p2.box.top) : mid(p1.box.top, p2.box.bottom);
+                const startX = p1.x + laneOffset;
+                const endX = p2.x + laneOffset;
+                return p1.c === p2.c ? `M ${startX} ${startY} L ${startX} ${seamY} L ${startX} ${endY}` : `M ${startX} ${startY} L ${startX} ${seamY} L ${endX} ${seamY} L ${endX} ${endY}`;
+            }
+        }
+        return `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
+    };
+
+    const drawGroups = (groups, color, laneOffset, usePowerTone) => {
+        Object.entries(groups).forEach(([id, points]) => {
+            points.sort((a, b) => a.seq - b.seq);
+            const stroke = usePowerTone ? powerMappingTone(id).line : color;
+            for (let i = 1; i < points.length; i++) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathFor(points[i - 1], points[i], laneOffset));
+                path.setAttribute('stroke', stroke);
+                path.setAttribute('stroke-width', mode === 'power' ? '3.4' : '3.8');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                path.setAttribute('opacity', '0.96');
+                svg.appendChild(path);
+            }
+        });
+    };
+
+    drawGroups(groupsPower, '#e8382c', -11, mode === 'power');
+    if (mode === 'topology') drawGroups(groupsData, '#007ee8', 11, false);
+}
+
+function preparePdfDetailPages() {
+    clearPdfDetailPages();
+    if (!shouldTilePdfMatrix(lastMatrix)) return null;
+    const page1 = document.getElementById('a4page1');
+    const page2 = document.getElementById('a4page2');
+    if (page1) page1.dataset.pdfSkip = '1';
+    if (page2) page2.dataset.pdfSkip = '1';
+
+    const holder = document.createElement('div');
+    holder.className = 'pdf-detail-pages';
+    const processorContainer = document.getElementById('processorCanvases');
+    (processorContainer?.parentNode || document.querySelector('.right-panel')).insertBefore(holder, processorContainer || null);
+
+    const stats = document.getElementById('statsGrid');
+    const topologyRanges = getPdfTileRanges(lastMatrix, 8, 4);
+    topologyRanges.forEach((range, index) => {
+        const tile = createPdfMatrixTile(lastMatrix, range.rowStart, range.rowEnd, range.colStart, range.colEnd, 'topology');
+        const label = `Rows ${range.rowStart + 1}-${range.rowEnd} ? Cols ${range.colStart + 1}-${range.colEnd}`;
+        const page = createPdfTilePage('Power & Data Topology', label, tile, index === 0 ? stats : null);
+        holder.appendChild(page);
+        drawPdfTileLines(tile, lastMatrix, 'topology');
+    });
+
+    const powerRanges = getPdfTileRanges(lastMatrix, 8, 5);
+    powerRanges.forEach(range => {
+        const tile = createPdfMatrixTile(lastMatrix, range.rowStart, range.rowEnd, range.colStart, range.colEnd, 'power');
+        const label = `Rows ${range.rowStart + 1}-${range.rowEnd} ? Cols ${range.colStart + 1}-${range.colEnd}`;
+        const page = createPdfTilePage('Power Mapping', label, tile, null);
+        holder.appendChild(page);
+        drawPdfTileLines(tile, lastMatrix, 'power');
+    });
+    return holder;
+}
+
 function getMappingPdfFilename() {
     const model = (currentProductObj.model || 'Unknown').toString().replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '');
     const cols = parseInt(document.getElementById('customCols')?.value, 10) || 1;
@@ -2257,56 +2528,523 @@ function fitA4Pages() {
         fitContainer(cablingContent, pageWidth - padX, pageHeight - titleReserve - 28);
     }
 
+    document.querySelectorAll('.pdf-detail-page').forEach(function(page) {
+        const stats = page.querySelector('.stats-grid');
+        const tileContent = page.querySelector('.pdf-tile-content');
+        const tile = tileContent ? tileContent.firstElementChild : null;
+        const statsHeight = stats ? stats.offsetHeight : 0;
+        const availableHeight = Math.max(120, pageHeight - titleReserve - statsHeight - 32);
+        if (tileContent) tileContent.style.height = availableHeight + 'px';
+        fitContainer(tile, pageWidth - padX, availableHeight);
+    });
+
     document.querySelectorAll('#processorCanvases .a4-page').forEach(function(page) {
         const card = page.querySelector('.canvas-card');
         fitContainer(card, pageWidth - padX, pageHeight - titleReserve - 28);
     });
 }
 
+function pdfColorToRgb(color, fallback = [0, 0, 0]) {
+    if (!color || color === 'transparent') return null;
+    const hex = color.match(/^#([0-9a-f]{6})$/i);
+    if (hex) {
+        const n = parseInt(hex[1], 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    const hsl = color.match(/hsla?\(([-\d.]+),\s*([\d.]+)%,\s*([\d.]+)%(?:,\s*([\d.]+))?/i);
+    if (!hsl) return fallback;
+    let h = ((parseFloat(hsl[1]) % 360) + 360) % 360;
+    let s = parseFloat(hsl[2]) / 100;
+    let l = parseFloat(hsl[3]) / 100;
+    const alpha = hsl[4] === undefined ? 1 : Math.max(0, Math.min(1, parseFloat(hsl[4])));
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) [r, g, b] = [c, x, 0];
+    else if (h < 120) [r, g, b] = [x, c, 0];
+    else if (h < 180) [r, g, b] = [0, c, x];
+    else if (h < 240) [r, g, b] = [0, x, c];
+    else if (h < 300) [r, g, b] = [x, 0, c];
+    else [r, g, b] = [c, 0, x];
+    const solid = [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+    return solid.map(value => Math.round(255 * (1 - alpha) + value * alpha));
+}
+
+function pdfSetColor(pdf, method, color, fallback) {
+    const rgb = pdfColorToRgb(color, fallback);
+    if (!rgb) return false;
+    pdf[method](rgb[0], rgb[1], rgb[2]);
+    return true;
+}
+
+function pdfDrawBadgeText(pdf, text, x, y, fontPt, textColor, fillColor, fontStyle = 'normal') {
+    const label = (text || '').toString();
+    pdf.setFont('helvetica', fontStyle);
+    pdf.setFontSize(fontPt);
+    const textWidth = pdf.getTextWidth(label);
+    const padX = Math.max(0.55, fontPt * 0.11);
+    const padY = Math.max(0.25, fontPt * 0.05);
+    pdfSetColor(pdf, 'setFillColor', fillColor || '#ffffff', [255, 255, 255]);
+    pdf.roundedRect(x - textWidth / 2 - padX, y - fontPt * 0.28 - padY, textWidth + padX * 2, fontPt * 0.38 + padY * 2, 0.9, 0.9, 'F');
+    pdfSetColor(pdf, 'setTextColor', textColor, [17, 24, 39]);
+    pdf.text(label, x, y, { align: 'center', baseline: 'middle' });
+}
+
+function pdfGetMatrixLayout(matrix, x, y, w, h) {
+    const rows = matrix.length;
+    const cols = matrix[0]?.length || 1;
+    const unitWidth = currentProductObj.pixelW || 1;
+    const rowRatios = Array.from({ length: rows }, (_, r) => {
+        const rowPixelH = matrix[r]?.[0]?.pixelH || currentProductObj.pixelH || unitWidth;
+        return Math.max(0.18, rowPixelH / unitWidth);
+    });
+    const ratioSum = rowRatios.reduce((sum, value) => sum + value, 0);
+    const baseNoGap = Math.min(w / Math.max(1, cols), h / Math.max(0.1, ratioSum));
+    const gap = Math.max(0.8, Math.min(1.6, baseNoGap * 0.1));
+    const cellW = Math.min(
+        (w - gap * Math.max(0, cols - 1)) / Math.max(1, cols),
+        (h - gap * Math.max(0, rows - 1)) / Math.max(0.1, ratioSum)
+    );
+    const rowHeights = rowRatios.map(ratio => cellW * ratio);
+    const contentW = cols * cellW + gap * Math.max(0, cols - 1);
+    const contentH = rowHeights.reduce((sum, value) => sum + value, 0) + gap * Math.max(0, rows - 1);
+    const offsetX = x + Math.max(0, (w - contentW) / 2);
+    const offsetY = y + Math.max(0, (h - contentH) / 2);
+    const rowOffsets = [0];
+    for (let i = 0; i < rowHeights.length; i++) rowOffsets.push(rowOffsets[i] + rowHeights[i] + gap);
+    return { rows, cols, x: offsetX, y: offsetY, w: contentW, h: contentH, gap, cellW, cellH: rowHeights[0] || cellW, rowHeights, rowOffsets };
+}
+
+function pdfCellBox(layout, r, c) {
+    const top = layout.y + (layout.rowOffsets ? layout.rowOffsets[r] : r * (layout.cellH + layout.gap));
+    const height = layout.rowHeights ? layout.rowHeights[r] : layout.cellH;
+    const left = layout.x + c * (layout.cellW + layout.gap);
+    return {
+        left,
+        top,
+        width: layout.cellW,
+        height,
+        right: left + layout.cellW,
+        bottom: top + height
+    };
+}
+
+function getPdfStatsData() {
+    if (!lastMatrix?.length) return [];
+    const rows = lastMatrix.length;
+    const cols = lastMatrix[0]?.length || 0;
+    const totalResW = cols * (currentProductObj.pixelW || 0);
+    const totalResH = lastMatrix.reduce((sum, row) => sum + (row[0]?.pixelH || currentProductObj.pixelH || 0), 0);
+    const screenRows = document.getElementById('customRows')?.value || rows;
+    const screenCols = document.getElementById('customCols')?.value || cols;
+    const canvas = _lastControllerPlan?.canvas || getCurrentMasterCanvas();
+    const powerIds = new Set();
+    const dataIds = new Set();
+    lastMatrix.flat().forEach(cell => {
+        const p = cell.powerLabel?.match(/P(\d+)/);
+        const d = cell.portLabel?.match(/D(\d+)/);
+        if (p) powerIds.add(p[1]);
+        if (d) dataIds.add(d[1]);
+    });
+    const countSegments = (labelField, prefix) => {
+        const groups = {};
+        const direction = document.getElementById('routeDirectionSelect')?.value || 'vertical';
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const match = (lastMatrix[r][c][labelField] || '').match(new RegExp(`${prefix}(\\d+)-(\\d+)`));
+                if (!match) continue;
+                const id = `${prefix}${match[1]}`;
+                if (!groups[id]) groups[id] = [];
+                groups[id].push({ seq: parseInt(match[2], 10), r, c });
+            }
+        }
+        let shortCount = 0;
+        let jumperCount = 0;
+        Object.values(groups).forEach(points => {
+            points.sort((a, b) => a.seq - b.seq);
+            for (let i = 1; i < points.length; i++) {
+                const prev = points[i - 1];
+                const cur = points[i];
+                const jumper = direction === 'horizontal' ? prev.r !== cur.r : prev.c !== cur.c;
+                if (jumper) jumperCount++; else shortCount++;
+            }
+        });
+        return { shortCount, jumperCount };
+    };
+    const powerSeg = countSegments('powerLabel', 'P');
+    const dataSeg = countSegments('portLabel', 'D');
+    return [
+        ['Total Resolution', `${totalResW}x${Math.floor(totalResH)}`],
+        ['Master Canvas', `${canvas.key} ${canvas.width}x${canvas.height}`],
+        ['Main Power', `${powerIds.size}`],
+        ['Short Power', `${powerSeg.shortCount}`],
+        ['Power Jumpers', `${powerSeg.jumperCount}`],
+        ['Screen Size', `${screenCols} x ${screenRows}`],
+        ['Processors', `${_lastControllerPlan?.controllerSummaries?.length || 0}`],
+        ['Main Data', `${dataIds.size}`],
+        ['Short Data', `${dataSeg.shortCount}`],
+        ['Data Jumpers', `${dataSeg.jumperCount}`]
+    ];
+}
+
+function pdfDrawStats(pdf, x, y, w) {
+    const cards = getPdfStatsData();
+    if (!cards.length) return 0;
+    const cols = 5;
+    const gap = 2.2;
+    const cardW = (w - gap * (cols - 1)) / cols;
+    const cardH = 12;
+    cards.forEach(([label, value], index) => {
+        const cx = x + (index % cols) * (cardW + gap);
+        const cy = y + Math.floor(index / cols) * (cardH + gap);
+        pdf.setDrawColor(216, 224, 235);
+        pdf.setFillColor(248, 250, 252);
+        pdf.roundedRect(cx, cy, cardW, cardH, 2, 2, 'FD');
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(5.4);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(label, cx + 2, cy + 4.2);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.setTextColor(17, 24, 39);
+        pdf.text(value, cx + 2, cy + 9.2);
+    });
+    return Math.ceil(cards.length / cols) * cardH + (Math.ceil(cards.length / cols) - 1) * gap;
+}
+
+function pdfPathPoints(p1, p2, laneOffset, direction) {
+    const ir = 0.34;
+    const mid = (a, b) => (a + b) / 2;
+    if (direction === 'vertical') {
+        if (p1.c === p2.c && p1.r !== p2.r) {
+            const down = p2.r > p1.r;
+            return [[p1.x, down ? p1.y + p1.box.height * ir : p1.y - p1.box.height * ir], [p2.x, down ? p2.y - p2.box.height * ir : p2.y + p2.box.height * ir]];
+        }
+        if (p1.c !== p2.c) {
+            const right = p2.c > p1.c;
+            const startX = right ? p1.box.right + 0.3 : p1.box.left - 0.3;
+            const endX = right ? p2.box.left - 0.3 : p2.box.right + 0.3;
+            const seamX = right ? mid(p1.box.right, p2.box.left) : mid(p1.box.left, p2.box.right);
+            const startY = p1.y + laneOffset;
+            const endY = p2.y + laneOffset;
+            return p1.r === p2.r ? [[startX, startY], [seamX, startY], [endX, startY]] : [[startX, startY], [seamX, startY], [seamX, endY], [endX, endY]];
+        }
+    } else {
+        if (p1.r === p2.r && p1.c !== p2.c) {
+            const right = p2.c > p1.c;
+            return [[right ? p1.x + p1.box.width * ir : p1.x - p1.box.width * ir, p1.y + laneOffset], [right ? p2.x - p2.box.width * ir : p2.x + p2.box.width * ir, p2.y + laneOffset]];
+        }
+        if (p1.r !== p2.r) {
+            const down = p2.r > p1.r;
+            const startY = down ? p1.box.bottom + 0.3 : p1.box.top - 0.3;
+            const endY = down ? p2.box.top - 0.3 : p2.box.bottom + 0.3;
+            const seamY = down ? mid(p1.box.bottom, p2.box.top) : mid(p1.box.top, p2.box.bottom);
+            const startX = p1.x + laneOffset;
+            const endX = p2.x + laneOffset;
+            return p1.c === p2.c ? [[startX, startY], [startX, seamY], [startX, endY]] : [[startX, startY], [startX, seamY], [endX, seamY], [endX, endY]];
+        }
+    }
+    return [[p1.x, p1.y], [p2.x, p2.y]];
+}
+
+function pdfDrawPolyline(pdf, points, color, width) {
+    if (!points || points.length < 2) return;
+    pdfSetColor(pdf, 'setDrawColor', color, [17, 24, 39]);
+    pdf.setLineWidth(width);
+    for (let i = 1; i < points.length; i++) pdf.line(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1]);
+}
+
+function pdfDrawArrowHead(pdf, p1, p2, color, size) {
+    const angle = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
+    const a1 = angle + Math.PI * 0.82;
+    const a2 = angle - Math.PI * 0.82;
+    const pts = [p2, [p2[0] + Math.cos(a1) * size, p2[1] + Math.sin(a1) * size], [p2[0] + Math.cos(a2) * size, p2[1] + Math.sin(a2) * size]];
+    pdfSetColor(pdf, 'setFillColor', color, [232, 56, 44]);
+    pdf.triangle(pts[0][0], pts[0][1], pts[1][0], pts[1][1], pts[2][0], pts[2][1], 'F');
+}
+
+function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
+    if (!lastMatrix?.length) return;
+    const margin = 8;
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, PW, PH, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.setTextColor(17, 24, 39);
+    pdf.text(pageTitle, margin, 10);
+    let top = 16;
+    if (includeStats) top += pdfDrawStats(pdf, margin, top, PW - margin * 2) + 6;
+    const layout = pdfGetMatrixLayout(lastMatrix, margin, top, PW - margin * 2, PH - top - margin);
+    const direction = document.getElementById('routeDirectionSelect').value;
+    const maps = getPdfControllerColorMaps(lastMatrix);
+    const groupsPower = {};
+    const groupsData = {};
+    const labels = [];
+
+    for (let r = 0; r < layout.rows; r++) {
+        for (let c = 0; c < layout.cols; c++) {
+            const cell = lastMatrix[r][c];
+            const box = pdfCellBox(layout, r, c);
+            const cx = box.left + box.width / 2;
+            const cy = box.top + box.height / 2;
+            if (mode === 'power') {
+                const tone = powerMappingTone(cell.powerLabel);
+                const fillRgb = pdfColorToRgb(tone.fill);
+                pdfSetColor(pdf, 'setDrawColor', tone.border, [255, 126, 110]);
+                if (fillRgb) {
+                    pdf.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
+                    pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(2, box.width * 0.08), Math.min(2, box.height * 0.08), 'FD');
+                } else {
+                    pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(2, box.width * 0.08), Math.min(2, box.height * 0.08), 'S');
+                }
+            } else {
+                const cid = cell.controllerId || 1;
+                const toneIndex = maps.controllerIndexMap.get(cid) || 1;
+                const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
+                const portIdx = maps.portIndexMap.get(cid)?.get(portNum) ?? 0;
+                const fill = portFillColor(toneIndex, portIdx, r, c, direction);
+                pdfSetColor(pdf, 'setFillColor', fill, [220, 38, 38]);
+                pdf.setDrawColor(31, 41, 55);
+                pdf.setLineWidth(0.08);
+                pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(1.5, box.width * 0.08), Math.min(1.5, box.height * 0.08), 'FD');
+            }
+            const powerMatch = cell.powerLabel.match(/P(\d+)-(\d+)/);
+            if (powerMatch) {
+                const id = `P${powerMatch[1]}`;
+                if (!groupsPower[id]) groupsPower[id] = [];
+                groupsPower[id].push({ seq: parseInt(powerMatch[2], 10), x: direction === 'vertical' ? cx - box.width * 0.18 : cx, y: direction === 'vertical' ? cy : cy - box.height * 0.18, r, c, box });
+            }
+            if (mode === 'topology') {
+                const dataMatch = cell.portLabel.match(/D(\d+)-(\d+)/);
+                if (dataMatch) {
+                    const id = `D${dataMatch[1]}`;
+                    if (!groupsData[id]) groupsData[id] = [];
+                    groupsData[id].push({ seq: parseInt(dataMatch[2], 10), x: direction === 'vertical' ? cx + box.width * 0.18 : cx, y: direction === 'vertical' ? cy : cy + box.height * 0.18, r, c, box });
+                }
+            }
+            labels.push({ cell, x: cx, y: cy, box });
+        }
+    }
+
+    const drawGroups = (groups, color, laneOffset, powerTone, arrow) => {
+        Object.entries(groups).forEach(([id, points]) => {
+            points.sort((a, b) => a.seq - b.seq);
+            const stroke = powerTone ? powerMappingTone(id).line : color;
+            for (let i = 1; i < points.length; i++) {
+                const pts = pdfPathPoints(points[i - 1], points[i], laneOffset, direction);
+                pdfDrawPolyline(pdf, pts, stroke, mode === 'power' ? 0.55 : 0.62);
+                if (arrow && pts.length >= 2) pdfDrawArrowHead(pdf, pts[pts.length - 2], pts[pts.length - 1], stroke, 1.25);
+            }
+        });
+    };
+    drawGroups(groupsPower, '#e8382c', -1.25, mode === 'power', mode === 'power');
+    if (mode === 'topology') drawGroups(groupsData, '#007ee8', 1.25, false, false);
+
+    const minCell = Math.min(layout.cellW, layout.cellH);
+    const twoLineFont = Math.max(3.8, Math.min(5.8, minCell * 0.36 * 2.834));
+    const oneLineFont = Math.max(4.2, Math.min(6.6, minCell * 0.42 * 2.834));
+    labels.forEach(({ cell, x, y, box }) => {
+        if (mode === 'power') {
+            pdfDrawBadgeText(pdf, cell.powerLabel, x, y + oneLineFont * 0.02, oneLineFont, '#ff4f3d', '#ffffff', 'normal');
+        } else {
+            const gap = Math.max(1.7, box.height * 0.17);
+            pdfDrawBadgeText(pdf, cell.powerLabel, x, y - gap, twoLineFont, '#ff4f3d', '#ffffff', 'normal');
+            pdfDrawBadgeText(pdf, cell.portLabel, x, y + gap, twoLineFont, '#1e9bff', '#ffffff', 'normal');
+        }
+    });
+}
+
+function getProcessorPdfPageData() {
+    if (!_lastControllerPlan || !lastMatrix?.length) return [];
+    const plan = _lastControllerPlan;
+    const canvas = plan.canvas;
+    const matrix = lastMatrix;
+    const unitWidth = currentProductObj.pixelW || 1;
+    const orderedControllers = [...(plan.controllers || plan._rawPlan?.controllers || [])].sort((first, second) => {
+        const firstPiece = first.pieces[0];
+        const secondPiece = second.pieces[0];
+        return (firstPiece.r - secondPiece.r) || (firstPiece.c - secondPiece.c);
+    });
+    return orderedControllers.map((controller, displayIndex) => {
+        const pieces = controller.pieces || [];
+        const minRow = Math.min(...pieces.map(piece => piece.r));
+        const minCol = Math.min(...pieces.map(piece => piece.c));
+        const placedPieces = pieces.map(piece => ({
+            piece,
+            canvasRow: Number.isFinite(piece.canvasR) ? piece.canvasR : piece.r - minRow,
+            canvasCol: Number.isFinite(piece.canvasC) ? piece.canvasC : piece.c - minCol
+        }));
+        const localRows = Math.max(1, ...placedPieces.map(item => item.canvasRow + item.piece.rows));
+        const localCols = Math.max(1, ...placedPieces.map(item => item.canvasCol + item.piece.cols));
+        const canvasRowsBySize = Math.max(1, Math.floor(canvas.height / (currentProductObj.pixelH || unitWidth)));
+        const canvasCols = Math.max(localCols, plan.maxCols || plan._rawPlan?.maxCols || localCols);
+        const canvasRows = Math.max(localRows, canvasRowsBySize, plan.maxRows || plan._rawPlan?.maxRows || localRows);
+        const occupied = new Map();
+        placedPieces.forEach(({ piece, canvasRow, canvasCol }) => {
+            for (let sourceRow = piece.r; sourceRow < piece.r + piece.rows; sourceRow++) {
+                for (let sourceCol = piece.c; sourceCol < piece.c + piece.cols; sourceCol++) {
+                    const localRow = canvasRow + sourceRow - piece.r;
+                    const localCol = canvasCol + sourceCol - piece.c;
+                    const cell = matrix[sourceRow]?.[sourceCol];
+                    if (cell) occupied.set(`${localRow},${localCol}`, { cell, sourceRow, sourceCol, localRow, localCol });
+                }
+            }
+        });
+        const rowRatios = Array.from({ length: canvasRows }, (_, localRow) => {
+            const rowCells = [...occupied.values()].filter(item => item.localRow === localRow);
+            const pixelHeight = rowCells.length
+                ? Math.max(...rowCells.map(item => item.cell.pixelH || currentProductObj.pixelH || unitWidth))
+                : (currentProductObj.pixelH || unitWidth);
+            return Math.max(0.25, pixelHeight / unitWidth);
+        });
+        const ports = [...new Set([...occupied.values()].map(item => parseInt(item.cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10)))].sort((first, second) => first - second);
+        const portIndex = new Map(ports.map((port, index) => [port, index]));
+        const pieceLabel = pieces.map(piece => `Rows ${piece.r + 1}-${piece.r + piece.rows} - Cols ${piece.c + 1}-${piece.c + piece.cols}`).join(' / ');
+        return {
+            controller,
+            displayIndex,
+            toneIndex: displayIndex + 1,
+            title: `Processor ${displayIndex + 1} canvas`,
+            meta: `${pieceLabel} - screen ${localCols}x${localRows} / canvas ${canvasCols}x${canvasRows} - ${canvas.width}x${canvas.height}`,
+            canvasCols,
+            canvasRows,
+            localCols,
+            localRows,
+            rowRatios,
+            occupied,
+            portIndex
+        };
+    }).filter(page => page.occupied.size > 0);
+}
+
+function pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH) {
+    const margin = 8;
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, PW, PH, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.setTextColor(17, 24, 39);
+    pdf.text(pageData.title, margin, 10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(pageData.meta, margin, 15);
+
+    const top = 20;
+    const gap = 0.28;
+    const availableW = PW - margin * 2;
+    const availableH = PH - top - margin;
+    const totalRatio = pageData.rowRatios.reduce((sum, value) => sum + value, 0);
+    const base = Math.min(
+        (availableW - gap * (pageData.canvasCols - 1)) / pageData.canvasCols,
+        (availableH - gap * (pageData.canvasRows - 1)) / totalRatio
+    );
+    const rowHeights = pageData.rowRatios.map(ratio => ratio * base);
+    const gridW = pageData.canvasCols * base + gap * (pageData.canvasCols - 1);
+    const gridH = rowHeights.reduce((sum, height) => sum + height, 0) + gap * (pageData.canvasRows - 1);
+    const startX = margin + (availableW - gridW) / 2;
+    const startY = top + (availableH - gridH) / 2;
+    const rowOffsets = [0];
+    for (let i = 0; i < rowHeights.length; i++) rowOffsets.push(rowOffsets[i] + rowHeights[i] + gap);
+
+    const boxFor = (localRow, localCol) => ({
+        left: startX + localCol * (base + gap),
+        top: startY + rowOffsets[localRow],
+        width: base,
+        height: rowHeights[localRow],
+        right: startX + localCol * (base + gap) + base,
+        bottom: startY + rowOffsets[localRow] + rowHeights[localRow]
+    });
+
+    pdf.setDrawColor(17, 24, 39);
+    pdf.setLineWidth(0.35);
+    pdf.rect(startX - 0.5, startY - 0.5, gridW + 1, gridH + 1, 'S');
+
+    const labels = [];
+    const groups = {};
+    for (let localRow = 0; localRow < pageData.canvasRows; localRow++) {
+        for (let localCol = 0; localCol < pageData.canvasCols; localCol++) {
+            const box = boxFor(localRow, localCol);
+            const item = pageData.occupied.get(`${localRow},${localCol}`);
+            if (item) {
+                const cell = item.cell;
+                const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
+                const portOrder = pageData.portIndex.get(portNum) ?? 0;
+                const fill = portFillColor(pageData.toneIndex, portOrder, localRow, localCol, document.getElementById('routeDirectionSelect')?.value);
+                pdfSetColor(pdf, 'setFillColor', fill, [220, 38, 38]);
+                pdf.setDrawColor(255, 255, 255);
+                pdf.setLineWidth(0.08);
+                pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(0.8, box.width * 0.06), Math.min(0.8, box.height * 0.06), 'FD');
+                labels.push({ label: cell.portLabel, x: box.left + box.width / 2, y: box.top + box.height / 2, box });
+                const match = cell.portLabel.match(/D(\d+)-(\d+)/);
+                if (match) {
+                    const groupId = match[1];
+                    if (!groups[groupId]) groups[groupId] = [];
+                    groups[groupId].push({
+                        seq: parseInt(match[2], 10),
+                        x: box.left + box.width / 2,
+                        y: box.top + box.height / 2,
+                        r: localRow,
+                        c: localCol,
+                        box
+                    });
+                }
+            } else {
+                pdf.setFillColor(248, 250, 252);
+                pdf.setDrawColor(216, 224, 235);
+                pdf.setLineWidth(0.08);
+                pdf.rect(box.left, box.top, box.width, box.height, 'FD');
+            }
+        }
+    }
+
+    Object.values(groups).forEach(points => {
+        points.sort((a, b) => a.seq - b.seq);
+        for (let i = 1; i < points.length; i++) {
+            const pts = pdfPathPoints(points[i - 1], points[i], 0, document.getElementById('routeDirectionSelect')?.value || 'vertical');
+            pdfDrawPolyline(pdf, pts, '#1e9bff', 0.55);
+        }
+    });
+
+    const minCell = Math.min(base, ...rowHeights);
+    const fontSize = Math.max(4.0, Math.min(6.2, minCell * 0.42 * 2.834));
+    labels.forEach(item => {
+        pdfDrawBadgeText(pdf, item.label, item.x, item.y, fontSize, '#1e9bff', '#ffffff', 'normal');
+    });
+}
+
+function drawVectorPdfIntroPages(pdf, PW, PH) {
+    pdfDrawVectorMap(pdf, 'topology', 'Power & Data Topology', true, PW, PH);
+    pdf.addPage();
+    pdfDrawVectorMap(pdf, 'power', 'Power Mapping', false, PW, PH);
+}
+
+function pdfAddPageNumbers(pdf, PW, PH) {
+    const total = pdf.getNumberOfPages();
+    for (let pageNo = 1; pageNo <= total; pageNo++) {
+        pdf.setPage(pageNo);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(`${pageNo} / ${total}`, PW - 10, PH - 6, { align: 'right' });
+    }
+}
+
 function exportMappingPdf() {
     renderPowerMapping(lastMatrix);
-    wrapProcessorA4Pages();
-    fitA4Pages();
-    setTimeout(function() {
-        var h2c = window.html2canvas;
-        var jspdf = window.jspdf;
-        if (!h2c || !jspdf) { alert('PDF library not loaded'); return; }
-        var pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
-        var PW = 297, PH = 210;
-        var captureScale = 4;
-        var opts = { scale: captureScale, backgroundColor: '#ffffff', useCORS: true, logging: false, removeContainer: true, letterRendering: true };
-        var pages = Array.from(document.querySelectorAll('.a4-page'));
-        if (!pages.length) return;
-
-        var saved = [];
-        pages.forEach(function(p) {
-            saved.push({ bg: p.style.background, shadow: p.style.boxShadow });
-            p.style.background = '#ffffff';
-            p.style.boxShadow = 'none';
-        });
-        function done() {
-            pages.forEach(function(p,i){ p.style.background = saved[i].bg; p.style.boxShadow = saved[i].shadow; });
-            pdf.save(getMappingPdfFilename());
-        }
-        function capture(i) {
-            if (i >= pages.length) { done(); return; }
-            if (i > 0) pdf.addPage();
-            h2c(pages[i], opts).then(function(c) {
-                var cssW = c.width / captureScale;
-                var cssH = c.height / captureScale;
-                var scale = Math.min(PW / cssW, PH / cssH);
-                var w = cssW * scale;
-                var h = cssH * scale;
-                var img = c.toDataURL('image/png');
-                pdf.addImage(img, 'PNG', (PW - w) / 2, (PH - h) / 2, w, h, undefined, 'FAST');
-                capture(i + 1);
-            }).catch(function(err) {
-                console.error('PDF page export failed:', err);
-                capture(i + 1);
-            });
-        }
-        capture(0);
-    }, 300);
+    clearPdfDetailPages();
+    const jspdf = window.jspdf;
+    if (!jspdf) { alert('PDF library not loaded'); return; }
+    const pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+    const PW = 297, PH = 210;
+    drawVectorPdfIntroPages(pdf, PW, PH);
+    getProcessorPdfPageData().forEach(pageData => {
+        pdf.addPage();
+        pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH);
+    });
+    pdfAddPageNumbers(pdf, PW, PH);
+    pdf.save(getMappingPdfFilename());
 }
 
 function init() {
