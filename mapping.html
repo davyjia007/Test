@@ -308,10 +308,11 @@ function isSingleControllerMode() {
     return false;
 }
 
-function portFillColor(index, portIndex, rowIndex = 0, colIndex = 0, direction = null) {
+function portFillColor(index, portIndex, rowIndex = 0, colIndex = 0, direction = null, context = 'processor') {
     const safePort = Number.isFinite(portIndex) ? portIndex : 0;
     if (isSingleControllerMode()) {
-        return safePort % 2 === 0 ? 'hsla(205, 88%, 55%, 0.16)' : 'transparent';
+        if (context === 'topology') return 'transparent';
+        return safePort % 2 === 0 ? 'hsla(205, 86%, 54%, 0.18)' : 'hsla(205, 72%, 42%, 0.30)';
     }
     const tone = getControllerTone(index);
     const variant = safePort % 4;
@@ -1726,7 +1727,7 @@ function renderDynamicVisual(matrix) {
             const portNum = parseInt(mod.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
             const portIdx = portIndexMap.get(cid)?.get(portNum) ?? 0;
             const portCount = portIndexMap.get(cid)?.size || 1;
-            const portFill = portFillColor(controllerToneIndex, portIdx, r, c, document.getElementById('routeDirectionSelect')?.value);
+            const portFill = portFillColor(controllerToneIndex, portIdx, r, c, document.getElementById('routeDirectionSelect')?.value, 'topology');
             html += `<div class="cab-module" data-row="${r}" data-col="${c}" style="height:${height}px; background:${portFill};">
                         <div class="power-text">${mod.powerLabel}</div>
                         <div style="height:12px;"></div>
@@ -1939,7 +1940,7 @@ function renderProcessorCanvasesCanvasLegacyUnused() {
                 if (occupied.has(key)) {
                     const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
                     const idx = portIndex.get(portNum) ?? 0;
-                    const fill = portFillColor(toneIndex, idx, localRow, localCol, document.getElementById('routeDirectionSelect')?.value);
+                    const fill = portFillColor(toneIndex, idx, localRow, localCol, document.getElementById('routeDirectionSelect')?.value, 'processor');
                     const fontSize = Math.max(6, Math.min(11, Math.min(cellW, rowHeights[r]) * 0.34));
                     stageGrid += `<div style="width:${cellW}px;height:${rowHeights[r]}px;background:${fill};border:1px solid rgba(255,255,255,0.35);border-radius:2px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:${fontSize}px;font-family:'JetBrains Mono',monospace;font-weight:700;line-height:1.1;" title="屏体 [${r},${c}]">${r + 1},${c + 1}</div>`;
                 } else {
@@ -2109,7 +2110,7 @@ function renderProcessorCanvases() {
                     const cell = item.cell;
                     const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
                     const portOrder = portIndex.get(portNum) ?? 0;
-                    const fill = portFillColor(toneIndex, portOrder, localRow, localCol, document.getElementById('routeDirectionSelect')?.value);
+                    const fill = portFillColor(toneIndex, portOrder, localRow, localCol, document.getElementById('routeDirectionSelect')?.value, 'processor');
                     const fontSize = Math.max(6, Math.min(10, cellWidth * 0.27, rowHeight * 0.34));
                     stageGrid += `<div style="width:${cellWidth}px;height:${rowHeight}px;background:${fill};border:1px solid rgba(255,255,255,0.35);border-radius:2px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:${fontSize}px;font-family:'JetBrains Mono',monospace;font-weight:800;line-height:1;white-space:nowrap;overflow:hidden;text-shadow:0 1px 2px rgba(0,0,0,0.55);" title="${cell.portLabel}">${cell.portLabel}</div>`;
                 } else {
@@ -2253,7 +2254,7 @@ function createPdfMatrixTile(matrix, rowStart, rowEnd, colStart, colEnd, mode) {
                 const toneIndex = maps.controllerIndexMap.get(cid) || 1;
                 const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
                 const portIdx = maps.portIndexMap.get(cid)?.get(portNum) ?? 0;
-                const fill = portFillColor(toneIndex, portIdx, r, c, document.getElementById('routeDirectionSelect')?.value);
+                const fill = portFillColor(toneIndex, portIdx, r, c, document.getElementById('routeDirectionSelect')?.value, 'topology');
                 html += `<div class="cab-module" data-pdf-row="${r}" data-pdf-col="${c}" style="height:${height}px;background:${fill};"><div class="power-text">${cell.powerLabel}</div><div style="height:12px;"></div><div class="port-text">${cell.portLabel}</div></div>`;
             }
         }
@@ -2883,7 +2884,7 @@ function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
                 const toneIndex = maps.controllerIndexMap.get(cid) || 1;
                 const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
                 const portIdx = maps.portIndexMap.get(cid)?.get(portNum) ?? 0;
-                const fill = portFillColor(toneIndex, portIdx, r, c, direction);
+                const fill = portFillColor(toneIndex, portIdx, r, c, direction, 'topology');
                 const fillRgb = pdfColorToRgb(fill);
                 pdf.setDrawColor(31, 41, 55);
                 pdf.setLineWidth(0.08);
@@ -3067,7 +3068,7 @@ function pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH) {
                 const cell = item.cell;
                 const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
                 const portOrder = pageData.portIndex.get(portNum) ?? 0;
-                const fill = portFillColor(pageData.toneIndex, portOrder, localRow, localCol, document.getElementById('routeDirectionSelect')?.value);
+                const fill = portFillColor(pageData.toneIndex, portOrder, localRow, localCol, document.getElementById('routeDirectionSelect')?.value, 'processor');
                 const fillRgb = pdfColorToRgb(fill);
                 pdf.setDrawColor(fillRgb ? 255 : 203, fillRgb ? 255 : 213, fillRgb ? 255 : 225);
                 pdf.setLineWidth(0.08);
