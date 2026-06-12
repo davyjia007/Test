@@ -302,9 +302,18 @@ function controllerBorderColor(index) {
     return `hsl(${tone.h}, ${tone.s}%, ${tone.l}%)`;
 }
 
+function isSingleControllerMode() {
+    if (_lastControllerPlan?.controllerSummaries?.length) return _lastControllerPlan.controllerSummaries.length === 1;
+    if (lastMatrix?.length) return new Set(lastMatrix.flat().map(cell => cell.controllerId || 1)).size === 1;
+    return false;
+}
+
 function portFillColor(index, portIndex, rowIndex = 0, colIndex = 0, direction = null) {
-    const tone = getControllerTone(index);
     const safePort = Number.isFinite(portIndex) ? portIndex : 0;
+    if (isSingleControllerMode()) {
+        return safePort % 2 === 0 ? 'hsla(205, 88%, 55%, 0.16)' : 'transparent';
+    }
+    const tone = getControllerTone(index);
     const variant = safePort % 4;
     const cycleLift = Math.floor(safePort / 4) % 2;
     const tones = [
@@ -2426,7 +2435,7 @@ function getMappingPdfFilename() {
     const cols = parseInt(document.getElementById('customCols')?.value, 10) || 1;
     const rows = parseInt(document.getElementById('customRows')?.value, 10) || 1;
     const hasHalfRow = !!document.getElementById('addHalfRowCheckbox')?.checked;
-    return `Mapping_${model}_${cols}\u00d7${rows + (hasHalfRow ? 0.5 : 0)}.pdf`;
+    return `Mapping_${model}_${cols}x${rows + (hasHalfRow ? 0.5 : 0)}.pdf`;
 }
 
 function createPdfPage(title, subtitle, nodes) {
@@ -2875,10 +2884,15 @@ function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
                 const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
                 const portIdx = maps.portIndexMap.get(cid)?.get(portNum) ?? 0;
                 const fill = portFillColor(toneIndex, portIdx, r, c, direction);
-                pdfSetColor(pdf, 'setFillColor', fill, [220, 38, 38]);
+                const fillRgb = pdfColorToRgb(fill);
                 pdf.setDrawColor(31, 41, 55);
                 pdf.setLineWidth(0.08);
-                pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(1.5, box.width * 0.08), Math.min(1.5, box.height * 0.08), 'FD');
+                if (fillRgb) {
+                    pdf.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
+                    pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(1.5, box.width * 0.08), Math.min(1.5, box.height * 0.08), 'FD');
+                } else {
+                    pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(1.5, box.width * 0.08), Math.min(1.5, box.height * 0.08), 'S');
+                }
             }
             const powerMatch = cell.powerLabel.match(/P(\d+)-(\d+)/);
             if (powerMatch) {
@@ -3054,10 +3068,15 @@ function pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH) {
                 const portNum = parseInt(cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
                 const portOrder = pageData.portIndex.get(portNum) ?? 0;
                 const fill = portFillColor(pageData.toneIndex, portOrder, localRow, localCol, document.getElementById('routeDirectionSelect')?.value);
-                pdfSetColor(pdf, 'setFillColor', fill, [220, 38, 38]);
-                pdf.setDrawColor(255, 255, 255);
+                const fillRgb = pdfColorToRgb(fill);
+                pdf.setDrawColor(fillRgb ? 255 : 203, fillRgb ? 255 : 213, fillRgb ? 255 : 225);
                 pdf.setLineWidth(0.08);
-                pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(0.8, box.width * 0.06), Math.min(0.8, box.height * 0.06), 'FD');
+                if (fillRgb) {
+                    pdf.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
+                    pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(0.8, box.width * 0.06), Math.min(0.8, box.height * 0.06), 'FD');
+                } else {
+                    pdf.roundedRect(box.left, box.top, box.width, box.height, Math.min(0.8, box.width * 0.06), Math.min(0.8, box.height * 0.06), 'S');
+                }
                 labels.push({ label: cell.portLabel, x: box.left + box.width / 2, y: box.top + box.height / 2, box });
                 const match = cell.portLabel.match(/D(\d+)-(\d+)/);
                 if (match) {
