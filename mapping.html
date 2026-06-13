@@ -1243,21 +1243,22 @@ function drawCablingLines() {
     }
     
     const getTopologyPath = (p1, p2, laneOffset = 0) => {
-        const ir = 0.34;
+        const mainInset = 0.28;
+        const sideInset = 0.18;
         const isVert = direction === 'vertical';
         const mid = (a, b) => (a + b) / 2;
 
         if (isVert) {
             if (p1.c === p2.c && p1.r !== p2.r) {
                 const goingDown = p2.r > p1.r;
-                const startY = goingDown ? p1.y + p1.box.height * ir : p1.y - p1.box.height * ir;
-                const endY = goingDown ? p2.y - p2.box.height * ir : p2.y + p2.box.height * ir;
+                const startY = goingDown ? p1.y + p1.box.height * mainInset : p1.y - p1.box.height * mainInset;
+                const endY = goingDown ? p2.y - p2.box.height * mainInset : p2.y + p2.box.height * mainInset;
                 return `M ${p1.x} ${startY} L ${p2.x} ${endY}`;
             }
             if (p1.c !== p2.c) {
                 const goingRight = p2.c > p1.c;
-                const startX = goingRight ? p1.box.right + 2 : p1.box.left - 2;
-                const endX = goingRight ? p2.box.left - 2 : p2.box.right + 2;
+                const startX = goingRight ? p1.box.right - p1.box.width * sideInset : p1.box.left + p1.box.width * sideInset;
+                const endX = goingRight ? p2.box.left + p2.box.width * sideInset : p2.box.right - p2.box.width * sideInset;
                 const seamX = goingRight ? mid(p1.box.right, p2.box.left) : mid(p1.box.left, p2.box.right);
                 const startY = p1.y + laneOffset;
                 const endY = p2.y + laneOffset;
@@ -1269,14 +1270,14 @@ function drawCablingLines() {
         } else {
             if (p1.r === p2.r && p1.c !== p2.c) {
                 const goingRight = p2.c > p1.c;
-                const startX = goingRight ? p1.x + p1.box.width * ir : p1.x - p1.box.width * ir;
-                const endX = goingRight ? p2.x - p2.box.width * ir : p2.x + p2.box.width * ir;
+                const startX = goingRight ? p1.x + p1.box.width * mainInset : p1.x - p1.box.width * mainInset;
+                const endX = goingRight ? p2.x - p2.box.width * mainInset : p2.x + p2.box.width * mainInset;
                 return `M ${startX} ${p1.y + laneOffset} L ${endX} ${p2.y + laneOffset}`;
             }
             if (p1.r !== p2.r) {
                 const goingDown = p2.r > p1.r;
-                const startY = goingDown ? p1.box.bottom + 2 : p1.box.top - 2;
-                const endY = goingDown ? p2.box.top - 2 : p2.box.bottom + 2;
+                const startY = goingDown ? p1.box.bottom - p1.box.height * sideInset : p1.box.top + p1.box.height * sideInset;
+                const endY = goingDown ? p2.box.top + p2.box.height * sideInset : p2.box.bottom - p2.box.height * sideInset;
                 const seamY = goingDown ? mid(p1.box.bottom, p2.box.top) : mid(p1.box.top, p2.box.bottom);
                 const startX = p1.x + laneOffset;
                 const endX = p2.x + laneOffset;
@@ -2023,17 +2024,18 @@ function renderProcessorCanvasesCanvasLegacyUnused() {
         const laneOffset = 0;
         // 网线纯色实线，不用箭头
         const processorArrowPath = (p1, p2) => {
-            const ir = 0.34;
+            const mainInset = 0.28;
+            const sideInset = 0.18;
             if (p1.localCol === p2.localCol && p1.localRow !== p2.localRow) {
                 const goingDown = p2.localRow > p1.localRow;
-                const startY = goingDown ? p1.y + p1.box.height * ir : p1.y - p1.box.height * ir;
-                const endY   = goingDown ? p2.y - p2.box.height * ir : p2.y + p2.box.height * ir;
+                const startY = goingDown ? p1.y + p1.box.height * mainInset : p1.y - p1.box.height * mainInset;
+                const endY   = goingDown ? p2.y - p2.box.height * mainInset : p2.y + p2.box.height * mainInset;
                 return `M ${p1.x} ${startY} L ${p2.x} ${endY}`;
             }
             if (p1.localCol !== p2.localCol) {
                 const goingRight = p2.localCol > p1.localCol;
-                const startX = goingRight ? p1.x + p1.box.width * ir : p1.x - p1.box.width * ir;
-                const endX   = goingRight ? p2.x - p2.box.width * ir : p2.x + p2.box.width * ir;
+                const startX = goingRight ? p1.box.right - p1.box.width * sideInset : p1.box.left + p1.box.width * sideInset;
+                const endX   = goingRight ? p2.box.left + p2.box.width * sideInset : p2.box.right - p2.box.width * sideInset;
                 if (p1.localRow === p2.localRow) {
                     return `M ${startX} ${p1.y} L ${endX} ${p2.y}`;
                 }
@@ -2231,17 +2233,18 @@ function renderProcessorCanvases() {
         const laneOffset = 0;
         // 网线纯色实线，不用箭头
         const processorArrowPath = (p1, p2) => {
-            const ir = 0.34;
+            const mainInset = 0.28;
+            const sideInset = 0.18;
             if (p1.localCol === p2.localCol && p1.localRow !== p2.localRow) {
                 const goingDown = p2.localRow > p1.localRow;
-                const startY = goingDown ? p1.y + p1.box.height * ir : p1.y - p1.box.height * ir;
-                const endY   = goingDown ? p2.y - p2.box.height * ir : p2.y + p2.box.height * ir;
+                const startY = goingDown ? p1.y + p1.box.height * mainInset : p1.y - p1.box.height * mainInset;
+                const endY   = goingDown ? p2.y - p2.box.height * mainInset : p2.y + p2.box.height * mainInset;
                 return `M ${p1.x} ${startY} L ${p2.x} ${endY}`;
             }
             if (p1.localCol !== p2.localCol) {
                 const goingRight = p2.localCol > p1.localCol;
-                const startX = goingRight ? p1.x + p1.box.width * ir : p1.x - p1.box.width * ir;
-                const endX   = goingRight ? p2.x - p2.box.width * ir : p2.x + p2.box.width * ir;
+                const startX = goingRight ? p1.box.right - p1.box.width * sideInset : p1.box.left + p1.box.width * sideInset;
+                const endX   = goingRight ? p2.box.left + p2.box.width * sideInset : p2.box.right - p2.box.width * sideInset;
                 if (p1.localRow === p2.localRow) {
                     return `M ${startX} ${p1.y} L ${endX} ${p2.y}`;
                 }
@@ -2429,16 +2432,17 @@ function drawPdfTileLines(tile, matrix, mode) {
 
     const mid = (a, b) => (a + b) / 2;
     const pathFor = (p1, p2, laneOffset = 0) => {
-        const ir = 0.34;
+        const mainInset = 0.28;
+        const sideInset = 0.18;
         if (direction === 'vertical') {
             if (p1.c === p2.c && p1.r !== p2.r) {
                 const down = p2.r > p1.r;
-                return `M ${p1.x} ${down ? p1.y + p1.box.height * ir : p1.y - p1.box.height * ir} L ${p2.x} ${down ? p2.y - p2.box.height * ir : p2.y + p2.box.height * ir}`;
+                return `M ${p1.x} ${down ? p1.y + p1.box.height * mainInset : p1.y - p1.box.height * mainInset} L ${p2.x} ${down ? p2.y - p2.box.height * mainInset : p2.y + p2.box.height * mainInset}`;
             }
             if (p1.c !== p2.c) {
                 const right = p2.c > p1.c;
-                const startX = right ? p1.box.right + 2 : p1.box.left - 2;
-                const endX = right ? p2.box.left - 2 : p2.box.right + 2;
+                const startX = right ? p1.box.right - p1.box.width * sideInset : p1.box.left + p1.box.width * sideInset;
+                const endX = right ? p2.box.left + p2.box.width * sideInset : p2.box.right - p2.box.width * sideInset;
                 const seamX = right ? mid(p1.box.right, p2.box.left) : mid(p1.box.left, p2.box.right);
                 const startY = p1.y + laneOffset;
                 const endY = p2.y + laneOffset;
@@ -2447,14 +2451,14 @@ function drawPdfTileLines(tile, matrix, mode) {
         } else {
             if (p1.r === p2.r && p1.c !== p2.c) {
                 const right = p2.c > p1.c;
-                const startX = right ? p1.x + p1.box.width * ir : p1.x - p1.box.width * ir;
-                const endX = right ? p2.x - p2.box.width * ir : p2.x + p2.box.width * ir;
+                const startX = right ? p1.x + p1.box.width * mainInset : p1.x - p1.box.width * mainInset;
+                const endX = right ? p2.x - p2.box.width * mainInset : p2.x + p2.box.width * mainInset;
                 return `M ${startX} ${p1.y + laneOffset} L ${endX} ${p2.y + laneOffset}`;
             }
             if (p1.r !== p2.r) {
                 const down = p2.r > p1.r;
-                const startY = down ? p1.box.bottom + 2 : p1.box.top - 2;
-                const endY = down ? p2.box.top - 2 : p2.box.bottom + 2;
+                const startY = down ? p1.box.bottom - p1.box.height * sideInset : p1.box.top + p1.box.height * sideInset;
+                const endY = down ? p2.box.top + p2.box.height * sideInset : p2.box.bottom - p2.box.height * sideInset;
                 const seamY = down ? mid(p1.box.bottom, p2.box.top) : mid(p1.box.top, p2.box.bottom);
                 const startX = p1.x + laneOffset;
                 const endX = p2.x + laneOffset;
@@ -2824,17 +2828,18 @@ function pdfDrawStats(pdf, x, y, w) {
 }
 
 function pdfPathPoints(p1, p2, laneOffset, direction) {
-    const ir = 0.34;
+    const mainInset = 0.28;
+    const sideInset = 0.18;
     const mid = (a, b) => (a + b) / 2;
     if (direction === 'vertical') {
         if (p1.c === p2.c && p1.r !== p2.r) {
             const down = p2.r > p1.r;
-            return [[p1.x, down ? p1.y + p1.box.height * ir : p1.y - p1.box.height * ir], [p2.x, down ? p2.y - p2.box.height * ir : p2.y + p2.box.height * ir]];
+            return [[p1.x, down ? p1.y + p1.box.height * mainInset : p1.y - p1.box.height * mainInset], [p2.x, down ? p2.y - p2.box.height * mainInset : p2.y + p2.box.height * mainInset]];
         }
         if (p1.c !== p2.c) {
             const right = p2.c > p1.c;
-            const startX = right ? p1.box.right + 0.3 : p1.box.left - 0.3;
-            const endX = right ? p2.box.left - 0.3 : p2.box.right + 0.3;
+            const startX = right ? p1.box.right - p1.box.width * sideInset : p1.box.left + p1.box.width * sideInset;
+            const endX = right ? p2.box.left + p2.box.width * sideInset : p2.box.right - p2.box.width * sideInset;
             const seamX = right ? mid(p1.box.right, p2.box.left) : mid(p1.box.left, p2.box.right);
             const startY = p1.y + laneOffset;
             const endY = p2.y + laneOffset;
@@ -2843,12 +2848,12 @@ function pdfPathPoints(p1, p2, laneOffset, direction) {
     } else {
         if (p1.r === p2.r && p1.c !== p2.c) {
             const right = p2.c > p1.c;
-            return [[right ? p1.x + p1.box.width * ir : p1.x - p1.box.width * ir, p1.y + laneOffset], [right ? p2.x - p2.box.width * ir : p2.x + p2.box.width * ir, p2.y + laneOffset]];
+            return [[right ? p1.x + p1.box.width * mainInset : p1.x - p1.box.width * mainInset, p1.y + laneOffset], [right ? p2.x - p2.box.width * mainInset : p2.x + p2.box.width * mainInset, p2.y + laneOffset]];
         }
         if (p1.r !== p2.r) {
             const down = p2.r > p1.r;
-            const startY = down ? p1.box.bottom + 0.3 : p1.box.top - 0.3;
-            const endY = down ? p2.box.top - 0.3 : p2.box.bottom + 0.3;
+            const startY = down ? p1.box.bottom - p1.box.height * sideInset : p1.box.top + p1.box.height * sideInset;
+            const endY = down ? p2.box.top + p2.box.height * sideInset : p2.box.bottom - p2.box.height * sideInset;
             const seamY = down ? mid(p1.box.bottom, p2.box.top) : mid(p1.box.top, p2.box.bottom);
             const startX = p1.x + laneOffset;
             const endX = p2.x + laneOffset;
