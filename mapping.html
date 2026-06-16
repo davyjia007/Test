@@ -278,6 +278,7 @@ let lastMatrix = null;
 let _lastControllerPlan = null;
 let _cablingTimer = null;   // setTimeout handle for drawCablingLines
 let customPortCapacities = JSON.parse(localStorage.getItem('customPortCapacities') || '{}');
+const MAX_PANELS_PER_POWER_FEED = 30;
 const MASTER_CANVAS_PRESETS = [
     { key: "2K", label: "2K 1920×1080", width: 1920, height: 1080, systems: null },
     { key: "4K", label: "4K 3840×2160", width: 3840, height: 2160, systems: null },
@@ -456,7 +457,7 @@ function getSignalSpecLabel() {
 function getActualMainPowerLoad() {
     const unitPower = getFullPower();
     if (!lastMatrix?.length) {
-        const panelsPerLine = Math.max(1, Math.floor(getMaxPowerLoad() / Math.max(1, unitPower)));
+        const panelsPerLine = Math.min(MAX_PANELS_PER_POWER_FEED, Math.max(1, Math.floor(getMaxPowerLoad() / Math.max(1, unitPower))));
         return Math.round(unitPower * panelsPerLine);
     }
     const loads = new Map();
@@ -829,47 +830,67 @@ function findBestRectangle(totalFull, pixelW, pixelH) {
 }
 
 // ======================= 基于真实物理负载 ?  的核心走线算 ?=======================
-function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, direction) {
-    let rows = matrix.length, cols = matrix[0].length;
-    let labels = Array(rows).fill().map(() => Array(cols).fill(''));
-    
-    // 如果 ?Half 面板，功 ?像素占用严格算作 0.5
+function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, direction, maxPanelCount = Infinity) {
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+    const labels = Array(rows).fill().map(() => Array(cols).fill(''));
+    const countLimited = Number.isFinite(maxPanelCount);
     const getLoad = (r, c) => matrix[r][c].type === "Half" ? (unitCap * 0.5) : unitCap;
+    const getPanelCount = (r, c) => matrix[r][c].type === "Half" ? 0.5 : 1;
+    const overLimit = (load, count) => load > maxCap || (countLimited && count > maxPanelCount);
+    const expectedSplits = (load, count) => Math.max(
+        Math.ceil(load / Math.max(1, maxCap)),
+        countLimited ? Math.ceil(count / Math.max(0.5, maxPanelCount)) : 1
+    );
+    const sumColumn = (c) => {
+        let load = 0, count = 0;
+        for (let r = 0; r < rows; r++) { load += getLoad(r, c); count += getPanelCount(r, c); }
+        return { load, count };
+    };
+    const sumRow = (r) => {
+        let load = 0, count = 0;
+        for (let c = 0; c < cols; c++) { load += getLoad(r, c); count += getPanelCount(r, c); }
+        return { load, count };
+    };
+    const sumAll = () => {
+        let load = 0, count = 0;
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { load += getLoad(r, c); count += getPanelCount(r, c); }
+        return { load, count };
+    };
 
     if (direction === 'vertical') {
-        let maxColLoad = 0;
+        let maxCol = { load: 0, count: 0 };
         for (let c = 0; c < cols; c++) {
-            let cL = 0; for (let r = 0; r < rows; r++) cL += getLoad(r, c);
-            if (cL > maxColLoad) maxColLoad = cL;
+            const col = sumColumn(c);
+            if (overLimit(col.load, col.count) || col.load > maxCol.load || col.count > maxCol.count) maxCol = col;
         }
 
-        if (maxColLoad > maxCap) {
-            // Single column overload: split inside the column.
+        if (overLimit(maxCol.load, maxCol.count)) {
             let cableId = 1;
             for (let c = 0; c < cols; c++) {
-                let colLoad = 0; for(let r=0; r<rows; r++) colLoad += getLoad(r,c);
-                let expectedK = Math.ceil(colLoad / maxCap);
+                const col = sumColumn(c);
+                const expectedK = expectedSplits(col.load, col.count);
                 let rowSplits = [];
                 let rIdx = 0, remainingRows = rows;
-                
                 while (remainingRows > 0) {
-                    let currentK = Math.max(1, expectedK - rowSplits.length);
-                    let targetSize = Math.ceil(remainingRows / currentK);
-                    let actualSize = 0, chunkLoad = 0;
+                    const currentK = Math.max(1, expectedK - rowSplits.length);
+                    const targetSize = Math.ceil(remainingRows / currentK);
+                    let actualSize = 0, chunkLoad = 0, chunkCount = 0;
                     for (let j = 0; j < targetSize; j++) {
-                        if (rIdx + j < rows) {
-                            if (chunkLoad + getLoad(rIdx + j, c) > maxCap && actualSize > 0) break;
-                            chunkLoad += getLoad(rIdx + j, c);
-                            actualSize++;
-                        }
+                        if (rIdx + j >= rows) break;
+                        const nextLoad = getLoad(rIdx + j, c);
+                        const nextCount = getPanelCount(rIdx + j, c);
+                        if (actualSize > 0 && overLimit(chunkLoad + nextLoad, chunkCount + nextCount)) break;
+                        chunkLoad += nextLoad;
+                        chunkCount += nextCount;
+                        actualSize++;
                     }
-                    if (actualSize === 0) actualSize = 1; 
+                    if (actualSize === 0) actualSize = 1;
                     let chunk = [];
                     for (let j = 0; j < actualSize; j++) chunk.push(rIdx++);
                     rowSplits.push(chunk);
                     remainingRows -= actualSize;
                 }
-
                 for (let chunk of rowSplits) {
                     let seq = 1;
                     for (let r of chunk) labels[r][c] = `${prefix}${cableId}-${seq++}`;
@@ -877,31 +898,28 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                 }
             }
         } else {
-            // 多列合并：自动按照列进 ?聚合
-            let totalLoad = 0; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) totalLoad += getLoad(r,c);
-            let expectedK = Math.ceil(totalLoad / maxCap);
+            const total = sumAll();
+            const expectedK = expectedSplits(total.load, total.count);
             let colChunks = [];
             let cIdx = 0, remainingCols = cols;
-            
             while (remainingCols > 0) {
-                let currentK = Math.max(1, expectedK - colChunks.length);
-                let targetSize = Math.ceil(remainingCols / currentK);
-                let actualSize = 0, chunkLoad = 0;
+                const currentK = Math.max(1, expectedK - colChunks.length);
+                const targetSize = Math.ceil(remainingCols / currentK);
+                let actualSize = 0, chunkLoad = 0, chunkCount = 0;
                 for (let j = 0; j < targetSize; j++) {
-                    if (cIdx + j < cols) {
-                        let cL = 0; for(let r=0; r<rows; r++) cL += getLoad(r, cIdx+j);
-                        if (chunkLoad + cL > maxCap && actualSize > 0) break;
-                        chunkLoad += cL;
-                        actualSize++;
-                    }
+                    if (cIdx + j >= cols) break;
+                    const col = sumColumn(cIdx + j);
+                    if (actualSize > 0 && overLimit(chunkLoad + col.load, chunkCount + col.count)) break;
+                    chunkLoad += col.load;
+                    chunkCount += col.count;
+                    actualSize++;
                 }
                 if (actualSize === 0) actualSize = 1;
                 let chunk = [];
-                for(let j=0; j<actualSize; j++) chunk.push(cIdx++);
+                for (let j = 0; j < actualSize; j++) chunk.push(cIdx++);
                 colChunks.push(chunk);
                 remainingCols -= actualSize;
             }
-
             let cableId = 1;
             for (let chunk of colChunks) {
                 let seq = 1, currentDir = 1;
@@ -909,42 +927,40 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                     if (pathType === 'N') currentDir = 1;
                     else if (seq === 1) currentDir = 1;
                     else currentDir = -currentDir;
-
                     let rOrder = [];
-                    if (currentDir === 1) for(let r=0; r<rows; r++) rOrder.push(r);
-                    else for(let r=rows-1; r>=0; r--) rOrder.push(r);
-
+                    if (currentDir === 1) for (let r = 0; r < rows; r++) rOrder.push(r);
+                    else for (let r = rows - 1; r >= 0; r--) rOrder.push(r);
                     for (let r of rOrder) labels[r][c] = `${prefix}${cableId}-${seq++}`;
                 }
                 cableId++;
             }
         }
     } else {
-        //  ?  走线逻辑
-        let maxRowLoad = 0;
+        let maxRow = { load: 0, count: 0 };
         for (let r = 0; r < rows; r++) {
-            let rL = 0; for (let c = 0; c < cols; c++) rL += getLoad(r, c);
-            if (rL > maxRowLoad) maxRowLoad = rL;
+            const row = sumRow(r);
+            if (overLimit(row.load, row.count) || row.load > maxRow.load || row.count > maxRow.count) maxRow = row;
         }
 
-        if (maxRowLoad > maxCap) {
+        if (overLimit(maxRow.load, maxRow.count)) {
             let cableId = 1;
             for (let r = 0; r < rows; r++) {
-                let rowLoad = 0; for(let c=0; c<cols; c++) rowLoad += getLoad(r,c);
-                let expectedK = Math.ceil(rowLoad / maxCap);
+                const row = sumRow(r);
+                const expectedK = expectedSplits(row.load, row.count);
                 let colSplits = [];
                 let cIdx = 0, remainingCols = cols;
-                
                 while (remainingCols > 0) {
-                    let currentK = Math.max(1, expectedK - colSplits.length);
-                    let targetSize = Math.ceil(remainingCols / currentK);
-                    let actualSize = 0, chunkLoad = 0;
+                    const currentK = Math.max(1, expectedK - colSplits.length);
+                    const targetSize = Math.ceil(remainingCols / currentK);
+                    let actualSize = 0, chunkLoad = 0, chunkCount = 0;
                     for (let j = 0; j < targetSize; j++) {
-                        if (cIdx + j < cols) {
-                            if (chunkLoad + getLoad(r, cIdx + j) > maxCap && actualSize > 0) break;
-                            chunkLoad += getLoad(r, cIdx + j);
-                            actualSize++;
-                        }
+                        if (cIdx + j >= cols) break;
+                        const nextLoad = getLoad(r, cIdx + j);
+                        const nextCount = getPanelCount(r, cIdx + j);
+                        if (actualSize > 0 && overLimit(chunkLoad + nextLoad, chunkCount + nextCount)) break;
+                        chunkLoad += nextLoad;
+                        chunkCount += nextCount;
+                        actualSize++;
                     }
                     if (actualSize === 0) actualSize = 1;
                     let chunk = [];
@@ -952,7 +968,6 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                     colSplits.push(chunk);
                     remainingCols -= actualSize;
                 }
-
                 for (let chunk of colSplits) {
                     let seq = 1;
                     for (let c of chunk) labels[r][c] = `${prefix}${cableId}-${seq++}`;
@@ -960,22 +975,21 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                 }
             }
         } else {
-            let totalLoad = 0; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) totalLoad += getLoad(r,c);
-            let expectedK = Math.ceil(totalLoad / maxCap);
+            const total = sumAll();
+            const expectedK = expectedSplits(total.load, total.count);
             let rowChunks = [];
             let rIdx = 0, remainingRows = rows;
-            
             while (remainingRows > 0) {
-                let currentK = Math.max(1, expectedK - rowChunks.length);
-                let targetSize = Math.ceil(remainingRows / currentK);
-                let actualSize = 0, chunkLoad = 0;
+                const currentK = Math.max(1, expectedK - rowChunks.length);
+                const targetSize = Math.ceil(remainingRows / currentK);
+                let actualSize = 0, chunkLoad = 0, chunkCount = 0;
                 for (let j = 0; j < targetSize; j++) {
-                    if (rIdx + j < rows) {
-                        let rL = 0; for(let c=0; c<cols; c++) rL += getLoad(rIdx+j, c);
-                        if (chunkLoad + rL > maxCap && actualSize > 0) break;
-                        chunkLoad += rL;
-                        actualSize++;
-                    }
+                    if (rIdx + j >= rows) break;
+                    const row = sumRow(rIdx + j);
+                    if (actualSize > 0 && overLimit(chunkLoad + row.load, chunkCount + row.count)) break;
+                    chunkLoad += row.load;
+                    chunkCount += row.count;
+                    actualSize++;
                 }
                 if (actualSize === 0) actualSize = 1;
                 let chunk = [];
@@ -983,7 +997,6 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                 rowChunks.push(chunk);
                 remainingRows -= actualSize;
             }
-
             let cableId = 1;
             for (let chunk of rowChunks) {
                 let seq = 1, currentDir = 1;
@@ -991,11 +1004,9 @@ function assignLabelsByStrictRule(matrix, maxCap, unitCap, pathType, prefix, dir
                     if (pathType === 'N') currentDir = 1;
                     else if (seq === 1) currentDir = 1;
                     else currentDir = -currentDir;
-
                     let cOrder = [];
-                    if (currentDir === 1) for(let c=0; c<cols; c++) cOrder.push(c);
-                    else for(let c=cols-1; c>=0; c--) cOrder.push(c);
-
+                    if (currentDir === 1) for (let c = 0; c < cols; c++) cOrder.push(c);
+                    else for (let c = cols - 1; c >= 0; c--) cOrder.push(c);
                     for (let c of cOrder) labels[r][c] = `${prefix}${cableId}-${seq++}`;
                 }
                 cableId++;
@@ -1325,7 +1336,7 @@ function computeSystem() {
     let direction = document.getElementById('routeDirectionSelect').value;
     
     // Assign power labels.
-    let powerLabels = assignLabelsByStrictRule(matrix, maxPower, unitPower, 'N', 'P', direction);
+    let powerLabels = assignLabelsByStrictRule(matrix, maxPower, unitPower, 'N', 'P', direction, MAX_PANELS_PER_POWER_FEED);
     let portPlan = assignPortLabelsByControllerCanvas(matrix, maxPixels, unitPixels, direction);
     let portLabels = portPlan.labels;
     let controllerIds = portPlan.controllerIds;
