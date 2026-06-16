@@ -348,7 +348,7 @@ function getSparePartsByCharge() {
         }
         if (spare.建议购买 > 0) {
             if (chargedMap.has(key)) chargedMap.get(key).qty += spare.建议购买;
-            else chargedMap.set(key, { name: spare.物料名称, sap: spare.SAP, desc: spare.物料描述, qty: spare.建议购买, remark: spare.备注 || "收费备品" });
+            else chargedMap.set(key, { name: spare.物料名称, sap: spare.SAP, desc: spare.物料描述, qty: spare.建议购买, remark: spare.备注 || "" });
         }
     }
     return { free: Array.from(freeMap.values()), charged: Array.from(chargedMap.values()) };
