@@ -66,8 +66,18 @@
         .cabling-canvas { background:#0a0c12; border-radius:20px; padding:20px; overflow-x:auto; margin-bottom:16px; border:1px solid #1e2a3a; text-align:center; }
         /* A4 横向页面：1120×794，屏幕即所见，导出即所得 */
         .a4-page { width:1120px; height:794px; background:#0a0c12; border:1px solid #1e2a3a; border-radius:12px; padding:16px 20px; margin-bottom:20px; overflow:hidden; position:relative; flex-shrink:0; }
-        .a4-page-title { color:#22d3ee; font-size:0.82rem; font-weight:700; margin-bottom:10px; border-left:3px solid #22d3ee; padding-left:10px; letter-spacing:1px; }
+        .report-page-header { height:34px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #d8e0eb; margin-bottom:10px; color:#475569; }
+        .report-page-logo { width:26px; height:26px; object-fit:contain; display:block; }
+        .report-page-name { font-size:0.72rem; font-weight:700; letter-spacing:0.2px; text-align:right; line-height:1.28; white-space:pre-line; }
+        .report-page-footer { position:absolute; left:20px; right:20px; bottom:8px; height:18px; display:flex; align-items:center; justify-content:flex-end; color:#64748b; font-size:0.62rem; }
+        .a4-page-title { color:#111827; font-size:0.92rem; font-weight:800; margin-bottom:10px; border-left:3px solid #22d3ee; padding-left:10px; letter-spacing:0.2px; }
         .a4-page-subtitle { display:block; margin-top:4px; font-size:0.68rem; color:#9aa6b5; font-weight:600; letter-spacing:0; }
+        .summary-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:-2px 0 8px; }
+        .summary-pill { border:1px solid #d8e0eb; background:#f8fafc; border-radius:10px; padding:6px 8px; min-width:0; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .summary-col + .summary-col { border-left:1px solid #d8e0eb; padding-left:8px; }
+        .summary-entry + .summary-entry { margin-top:3px; }
+        .summary-label { color:#64748b; font-size:0.58rem; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .summary-value { color:#111827; font-size:0.78rem; font-weight:800; line-height:1.25; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .a4-cabling { flex:1; overflow:hidden; text-align:center; }
         .right-panel { overflow-x:auto; }
         .matrix-visual { display:inline-grid; gap:14px; background:#111520; padding:24px; border-radius:18px; position:relative; }
@@ -234,7 +244,8 @@
 
         <!-- A4 Page 2: Power Mapping -->
         <div class="a4-page" id="a4page2">
-            <div class="a4-page-title">Power Mapping<span class="a4-page-subtitle" id="powerMappingSpecLine"></span></div>
+            <div class="a4-page-title">Power Mapping</div>
+            <div class="summary-strip" id="powerMappingInfoStrip"></div>
             <div class="a4-cabling"><div id="powerVisual"></div></div>
         </div>
 
@@ -464,6 +475,300 @@ function getPowerMappingSpecLabel() {
 
 function getProcessorSpecLabel() {
     return getSignalSpecLabel();
+}
+
+const PDF_REPORT_VERSION = '1.57';
+const REPORT_LOGO_SRC = 'ROE LOGO_RGB .jpg';
+let _pdfGeneratedTime = '';
+let _pdfLogoImage = null;
+
+function loadPdfLogoImage() {
+    if (_pdfLogoImage) return Promise.resolve(_pdfLogoImage);
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            _pdfLogoImage = img;
+            resolve(img);
+        };
+        img.onerror = () => resolve(null);
+        img.src = REPORT_LOGO_SRC;
+    });
+}
+
+function getVoltageParts() {
+    const val = document.getElementById('voltageSelect')?.value || '220|16';
+    const [voltage, current] = val.split('|').map(part => parseInt(part, 10) || 0);
+    return { voltage, current, capacity: getMaxPowerLoad() };
+}
+
+function formatWatts(value) {
+    const watts = Number(value) || 0;
+    if (Math.abs(watts) >= 1000) return `${(watts / 1000).toFixed(2).replace(/\.?0+$/, '')}kW`;
+    return `${Math.round(watts)}W`;
+}
+
+function formatKw(value) {
+    return `${((Number(value) || 0) / 1000).toFixed(2).replace(/\.?0+$/, '')} kW`;
+}
+
+function formatPercent(value) {
+    return `${(Number(value) || 0).toFixed(1).replace(/\.0$/, '')}%`;
+}
+
+function formatPixels(value) {
+    return Math.round(Number(value) || 0).toLocaleString();
+}
+
+function getPowerLoadSummary() {
+    const unitPower = getFullPower();
+    const capacity = getMaxPowerLoad();
+    const loads = new Map();
+    if (lastMatrix?.length) {
+        lastMatrix.flat().forEach(cell => {
+            const id = (cell.powerLabel || '').split('-')[0];
+            if (!id) return;
+            const load = cell.type === "Half" ? unitPower * 0.5 : unitPower;
+            loads.set(id, (loads.get(id) || 0) + load);
+        });
+    }
+    const feedCount = loads.size || 0;
+    const totalLoad = [...loads.values()].reduce((sum, value) => sum + value, 0);
+    const averageLoad = feedCount ? totalLoad / feedCount : 0;
+    const peakLoad = feedCount ? Math.max(...loads.values()) : 0;
+    return {
+        feedCount,
+        totalLoad,
+        averageLoad,
+        peakLoad,
+        capacity,
+        cabinetMax: unitPower,
+        cabinetTypical: unitPower * 0.4,
+        utilization: capacity ? (peakLoad / capacity) * 100 : 0
+    };
+}
+
+function getSignalParts() {
+    const signal = getSignalSpecLabel();
+    const match = signal.match(/(\d+)\s*B\s*(\d+)\s*HZ/i);
+    return {
+        bitDepth: match ? `${match[1]} Bit` : signal,
+        refreshRate: match ? `${match[2]}Hz` : ''
+    };
+}
+
+function formatReportNumber(value) {
+    const number = Number(value) || 0;
+    return Math.abs(number - Math.round(number)) < 0.001 ? String(Math.round(number)) : String(number).replace(/\.?0+$/, '');
+}
+
+function getPanelQty() {
+    if (lastMatrix?.length) {
+        return lastMatrix.flat().reduce((sum, cell) => sum + (cell.type === 'Half' ? 0.5 : 1), 0);
+    }
+    const cols = parseInt(document.getElementById('customCols')?.value, 10) || 1;
+    const rows = parseInt(document.getElementById('customRows')?.value, 10) || 1;
+    return cols * (rows + (document.getElementById('addHalfRowCheckbox')?.checked ? 0.5 : 0));
+}
+
+function getReportHeaderLines() {
+    const model = (currentProductObj.model || 'Unknown').toString().replace(/\s+/g, '');
+    return [
+        `Product : ${model}`,
+        `Panel Qty : ${formatReportNumber(getPanelQty())} pcs`
+    ];
+}
+
+function getReportHeaderLabel() {
+    return getReportHeaderLines().join('\n');
+}
+
+function getPowerInfoItems() {
+    const voltage = getVoltageParts();
+    const summary = getPowerLoadSummary();
+    const unitPower = getFullPower();
+    return [
+        {
+            left: [{ label: 'Input Voltage', value: `${voltage.voltage}V` }],
+            right: [{ label: 'Breaker Rating', value: `${voltage.current}A` }]
+        },
+        {
+            left: [{ label: 'Panel Max Power', value: `${Math.round(unitPower)}W` }],
+            right: [{ label: 'Panel Avg Power', value: `${Math.round(unitPower * 0.5)}W` }]
+        },
+        {
+            left: [{ label: 'Actual Load', value: formatKw(summary.peakLoad) }],
+            right: [
+  {
+    label: 'Capacity',
+    value: `${formatKw(summary.capacity)}`
+  }
+]
+        },
+        {
+            left: [{ label: 'Total Feeds', value: `${summary.feedCount}` }],
+            right: [{ label: 'Max / Avg Power', value: `${formatKw(summary.totalLoad)} / ${formatKw(summary.totalLoad * 0.5)}` }]
+        }
+    ];
+}
+
+function getProcessorInfoItems(pageData) {
+    const signal = getSignalParts();
+    const maxPort = getMaxPortPixels();
+    const canvas = _lastControllerPlan?.canvas || getCurrentMasterCanvas();
+    const usedPixels = (pageData.actualPixelW || 0) * (pageData.actualPixelH || 0);
+    const canvasPixels = (canvas.width || 0) * (canvas.height || 0);
+return [
+    {
+        left: [{ label: 'Processor Model', value: `${_currentSystem || 'Processor'} ${_currentBandwidth || ''}`.trim() }],
+        right: [{ label: 'Canvas Resolution', value: `${canvas.width} x ${canvas.height} px` }]
+    },
+    {
+        left: [{ label: 'Bit Depth', value: signal.bitDepth }],
+        right: [{ label: 'Refresh', value: signal.refreshRate ? signal.refreshRate.replace(/Hz/i, ' Hz') : '-' }]
+    },
+    {
+        left: [{ label: 'Actual Load', value: `${formatPixels(pageData.maxPortPixels)} px` }],
+        right: [{ label: 'Maximum Load', value: `${formatPixels(maxPort)} px` }]
+    },
+    {
+        left: [{ label: 'Active Ports', value: `${pageData.portCount || 0} Ports` }],
+        right: [{ label: 'Panels Resolution', value: `${Math.round(pageData.actualPixelW || 0)} x ${Math.round(pageData.actualPixelH || 0)} px` }]
+    }
+];
+}
+
+function renderSummaryColumnHtml(items) {
+    return items.map(item => `<div class="summary-entry"><div class="summary-label">${item.label}</div><div class="summary-value">${item.value}</div></div>`).join('');
+}
+
+function renderInfoStripHtml(cards) {
+    return cards.map(card => `
+        <div class="summary-pill">
+            <div class="summary-col">${renderSummaryColumnHtml(card.left || [])}</div>
+            <div class="summary-col">${renderSummaryColumnHtml(card.right || [])}</div>
+        </div>
+    `).join('');
+}
+
+function renderPowerInfoStrip() {
+    const strip = document.getElementById('powerMappingInfoStrip');
+    if (strip) strip.innerHTML = renderInfoStripHtml(getPowerInfoItems());
+}
+
+function pdfDrawReportHeader(pdf, PW) {
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, PW, 13, 'F');
+    if (_pdfLogoImage) {
+        const maxW = 24;
+        const maxH = 8;
+        const imgW = _pdfLogoImage.width || 1;
+        const imgH = _pdfLogoImage.height || 1;
+        const scale = Math.min(maxW / imgW, maxH / imgH);
+        const logoW = imgW * scale;
+        const logoH = imgH * scale;
+        pdf.addImage(_pdfLogoImage, 'JPEG', 8, 2.4, logoW, logoH);
+    } else {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.setTextColor(17, 24, 39);
+        pdf.text('ROE', 8, 7.5);
+    }
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6.4);
+    pdf.setTextColor(71, 85, 105);
+    const headerLines = getReportHeaderLines();
+    pdf.text(headerLines[0], PW - 8, 5.3, { align: 'right' });
+    pdf.text(headerLines[1], PW - 8, 8.6, { align: 'right' });
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.2);
+    pdf.line(8, 12.5, PW - 8, 12.5);
+}
+
+function pdfDrawReportFooter(pdf, pageNo, total, PW, PH) {
+    const y = PH - 7;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6.2);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Page ${pageNo} / ${total}`, PW - 8, y, { align: 'right' });
+}
+
+function pdfAddReportChrome(pdf, PW, PH) {
+    const total = pdf.getNumberOfPages();
+    for (let pageNo = 1; pageNo <= total; pageNo++) {
+        pdf.setPage(pageNo);
+        pdfDrawReportHeader(pdf, PW);
+        pdfDrawReportFooter(pdf, pageNo, total, PW, PH);
+    }
+}
+
+function pdfDrawSectionTitle(pdf, title, x, y) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(17, 24, 39);
+    pdf.text(title, x, y);
+}
+
+function pdfDrawMiniSummary(pdf, title, items, x, y, w, columns = 4) {
+    const gap = 2;
+    const rows = Math.ceil(items.length / columns);
+    const cardH = 7.2;
+    const h = 6 + rows * cardH;
+    pdf.setDrawColor(216, 224, 235);
+    pdf.setFillColor(248, 250, 252);
+    pdf.roundedRect(x, y, w, h, 2, 2, 'FD');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(6.8);
+    pdf.setTextColor(17, 24, 39);
+    pdf.text(title, x + 3, y + 4.5);
+    const itemW = (w - 6 - gap * (columns - 1)) / columns;
+    items.forEach((item, index) => {
+        const col = index % columns;
+        const row = Math.floor(index / columns);
+        const ix = x + 3 + col * (itemW + gap);
+        const iy = y + 8 + row * cardH;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(4.9);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(item.label, ix, iy);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(6.2);
+        pdf.setTextColor(17, 24, 39);
+        pdf.text(item.value, ix, iy + 3.6);
+    });
+    return h;
+}
+
+function pdfDrawInfoStrip(pdf, cards, x, y, w, columns = 4) {
+    const gap = 2;
+    const cardH = 11;
+    const h = cardH;
+    const cardW = (w - gap * (columns - 1)) / columns;
+    const drawEntry = (item, itemX, itemY, maxWidth) => {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(4.4);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(item.label, itemX, itemY, { maxWidth });
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(5.4);
+        pdf.setTextColor(17, 24, 39);
+        pdf.text(String(item.value), itemX, itemY + 3.1, { maxWidth });
+    };
+    cards.slice(0, columns).forEach((card, cardIndex) => {
+        const ix = x + cardIndex * (cardW + gap);
+        pdf.setDrawColor(216, 224, 235);
+        pdf.setFillColor(248, 250, 252);
+        pdf.roundedRect(ix, y, cardW, cardH, 2, 2, 'FD');
+        pdf.setDrawColor(216, 224, 235);
+        pdf.line(ix + cardW / 2, y + 1.5, ix + cardW / 2, y + cardH - 1.5);
+        const colW = cardW / 2 - 4;
+        [card.left || [], card.right || []].forEach((entries, colIndex) => {
+            const itemX = ix + colIndex * (cardW / 2) + 2;
+            const step = entries.length >= 3 ? 3.8 : 5.5;
+            const startY = y + (entries.length >= 3 ? 3 : 4.2);
+            entries.forEach((item, entryIndex) => drawEntry(item, itemX, startY + entryIndex * step, colW));
+        });
+    });
+    return h;
 }
 
 
@@ -1102,14 +1407,13 @@ function computeSystem() {
     document.getElementById('maxPixelsSpan').innerText = maxPixels.toLocaleString();
     document.getElementById('maxPowerSpan').innerText = maxPower;
     document.getElementById('unitPowerSpan').innerText = unitPower;
-    const powerMappingSpecLine = document.getElementById('powerMappingSpecLine');
-    if (powerMappingSpecLine) powerMappingSpecLine.textContent = getPowerMappingSpecLabel();
     _lastControllerPlan = portPlan;
     renderDynamicVisual(lastMatrix);
     setTimeout(drawCablingLines, 100);
     renderPowerMapping(lastMatrix);
+    renderPowerInfoStrip();
     renderProcessorCanvases();
-    setTimeout(wrapProcessorA4Pages, 50);
+    setTimeout(() => { wrapProcessorA4Pages(); decorateA4ReportPages(); }, 50);
     setTimeout(fitA4Pages, 200);
 }
 
@@ -1971,7 +2275,7 @@ function renderProcessorCanvasesCanvasLegacyUnused() {
         const toneIndex = displayIndex + 1;
         const tone = getControllerTone(toneIndex);
         const borderColor = controllerBorderColor(toneIndex);
-        const controllerLabel = `Processor ${displayIndex + 1} canvas`;
+        const controllerLabel = `Processor ${displayIndex + 1}`;
         const pieceLabel = ` ?${piece.r + 1}-${piece.r + piece.rows} ·  ?${piece.c + 1}-${piece.c + piece.cols}`;
         const occupied = new Set();
         for (let r = piece.r; r < piece.r + piece.rows; r++) {
@@ -2084,7 +2388,7 @@ function getProcessorCanvasMeta(pieces, occupied, rowRatios, unitWidth) {
     if (!occupiedCells.length) {
         return {
             pieceLabel,
-            meta: `${pieceLabel} - actual screen 0x0 - actual resolution 0x0`
+            meta: ''
         };
     }
     const minOccupiedRow = Math.min(...occupiedCells.map(item => item.localRow));
@@ -2103,7 +2407,7 @@ function getProcessorCanvasMeta(pieces, occupied, rowRatios, unitWidth) {
         actualPixelH,
         actualScreenCols,
         actualScreenRows,
-        meta: `${pieceLabel} - actual screen ${formatProcessorScreenNumber(actualScreenCols)}x${formatProcessorScreenNumber(actualScreenRows)} - actual resolution ${Math.round(actualPixelW)}x${Math.round(actualPixelH)}`
+        meta: ''
     };
 }
 
@@ -2150,7 +2454,7 @@ function renderProcessorCanvases() {
         const toneIndex = displayIndex + 1;
         const tone = getControllerTone(toneIndex);
         const borderColor = controllerBorderColor(toneIndex);
-        const controllerLabel = `Processor ${displayIndex + 1} canvas`;
+        const controllerLabel = `Processor ${displayIndex + 1}`;
         const pieceLabel = pieces
             .map(piece => `Rows ${piece.r + 1}-${piece.r + piece.rows} · Cols ${piece.c + 1}-${piece.c + piece.cols}`)
             .join(' / ');
@@ -2265,7 +2569,6 @@ function renderProcessorCanvases() {
         html += `<div class="canvas-card">
             <div class="canvas-card-header">
                 <span class="canvas-card-title">${controllerLabel}</span>
-                <span class="canvas-card-meta">${canvasMeta.meta} - ${getProcessorSpecLabel()}</span>
             </div>
             ${stageGrid}<svg id="${stageId}-svg" style="position:absolute;inset:0;width:${stageWidth}px;height:${stageHeight}px;pointer-events:none;z-index:3;">${paths}</svg></div>
         </div>`;
@@ -2578,11 +2881,43 @@ function wrapProcessorA4Pages() {
             while (header.firstChild) pageTitle.appendChild(header.firstChild);
             header.remove();
         } else {
-            pageTitle.textContent = 'Processor ' + (i + 1) + ' canvas';
+            pageTitle.textContent = 'Processor ' + (i + 1);
         }
         page.appendChild(pageTitle);
+        const pageData = getProcessorPdfPageData()[i];
+        if (pageData) {
+            const infoStrip = document.createElement('div');
+            infoStrip.className = 'summary-strip';
+            infoStrip.innerHTML = renderInfoStripHtml(getProcessorInfoItems(pageData));
+            page.appendChild(infoStrip);
+        }
         page.appendChild(card);
         container.appendChild(page);
+    });
+}
+
+function decorateA4ReportPages() {
+    const pages = Array.from(document.querySelectorAll('.right-panel .a4-page'));
+    const total = pages.length;
+    pages.forEach((page, index) => {
+        let header = page.querySelector(':scope > .report-page-header');
+        if (!header) {
+            header = document.createElement('div');
+            header.className = 'report-page-header';
+            header.innerHTML = `<img class="report-page-logo" src="${REPORT_LOGO_SRC}" alt="ROE"><span class="report-page-name"></span>`;
+            page.insertBefore(header, page.firstChild);
+        }
+        const reportName = header.querySelector('.report-page-name');
+        if (reportName) reportName.textContent = getReportHeaderLabel();
+        let footer = page.querySelector(':scope > .report-page-footer');
+        if (!footer) {
+            footer = document.createElement('div');
+            footer.className = 'report-page-footer';
+            footer.innerHTML = `<span></span>`;
+            page.appendChild(footer);
+        }
+        const pageNo = footer.querySelector('span');
+        if (pageNo) pageNo.textContent = `Page ${index + 1} / ${total}`;
     });
 }
 
@@ -2590,7 +2925,7 @@ function fitA4Pages() {
     const pageWidth = 1120;
     const pageHeight = 794;
     const padX = 40;
-    const titleReserve = 34;
+    const titleReserve = 82;
 
     function fitContainer(el, maxW, maxH) {
         if (!el) return;
@@ -2622,10 +2957,13 @@ function fitA4Pages() {
 
     const page2 = document.getElementById('a4page2');
     if (page2) {
+        const infoStrip = page2.querySelector('.summary-strip');
         const cabling = page2.querySelector('.a4-cabling');
         const cablingContent = cabling ? cabling.firstElementChild : null;
-        if (cabling) cabling.style.height = (pageHeight - titleReserve - 28) + 'px';
-        fitContainer(cablingContent, pageWidth - padX, pageHeight - titleReserve - 28);
+        const infoHeight = infoStrip ? infoStrip.offsetHeight : 0;
+        const availableHeight = pageHeight - titleReserve - infoHeight - 34;
+        if (cabling) cabling.style.height = availableHeight + 'px';
+        fitContainer(cablingContent, pageWidth - padX, availableHeight);
     }
 
     document.querySelectorAll('.pdf-detail-page').forEach(function(page) {
@@ -2639,8 +2977,10 @@ function fitA4Pages() {
     });
 
     document.querySelectorAll('#processorCanvases .a4-page').forEach(function(page) {
+        const infoStrip = page.querySelector('.summary-strip');
         const card = page.querySelector('.canvas-card');
-        fitContainer(card, pageWidth - padX, pageHeight - titleReserve - 28);
+        const infoHeight = infoStrip ? infoStrip.offsetHeight : 0;
+        fitContainer(card, pageWidth - padX, pageHeight - titleReserve - infoHeight - 34);
     });
 }
 
@@ -2774,16 +3114,16 @@ function getPdfStatsData() {
     const powerSeg = countSegments('powerLabel', 'P');
     const dataSeg = countSegments('portLabel', 'D');
     return [
-        ['Total Resolution', `${totalResW}x${Math.floor(totalResH)}`],
-        ['Master Canvas', `${canvas.key} ${canvas.width}x${canvas.height}`],
-        ['Main Power', `${powerIds.size}`],
-        ['Short Power', `${powerSeg.shortCount}`],
-        ['Power Jumpers', `${powerSeg.jumperCount}`],
-        ['Screen Size', screenSize],
-        ['Processors', `${_lastControllerPlan?.controllerSummaries?.length || 0}`],
-        ['Main Data', `${dataIds.size}`],
-        ['Short Data', `${dataSeg.shortCount}`],
-        ['Data Jumpers', `${dataSeg.jumperCount}`]
+        ['Total Resolution', `${totalResW.toLocaleString()} x ${Math.floor(totalResH).toLocaleString()} px`],
+        ['Master Canvas', `${canvas.key} ${canvas.width} x ${canvas.height} px`],
+        ['Main Power', `${powerIds.size} Feeds`],
+        ['Short Power', `${powerSeg.shortCount} pcs`],
+        ['Power Jumpers', `${powerSeg.jumperCount} pcs`],
+        ['Screen Size', `${screenSize} Panels`],
+        ['Processors', `${_lastControllerPlan?.controllerSummaries?.length || 0} Units`],
+        ['Main Data', `${dataIds.size} Feeds`],
+        ['Short Data', `${dataSeg.shortCount} pcs`],
+        ['Data Jumpers', `${dataSeg.jumperCount} pcs`]
     ];
 }
 
@@ -2800,7 +3140,7 @@ function pdfDrawStats(pdf, x, y, w) {
     const cols = 5;
     const gap = 2.2;
     const cardW = (w - gap * (cols - 1)) / cols;
-    const cardH = 12;
+    const cardH = 13.5;
     groups.forEach((group, index) => {
         const cx = x + index * (cardW + gap);
         const cy = y;
@@ -2819,12 +3159,36 @@ function pdfDrawStats(pdf, x, y, w) {
             pdf.setTextColor(100, 116, 139);
             pdf.text(label, itemX, cy + 4.2);
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(6.8);
+            pdf.setFontSize(6.5);
             pdf.setTextColor(17, 24, 39);
-            pdf.text(value, itemX, cy + 9.0);
+            pdf.text(value, itemX, cy + 9.4, { maxWidth: cardW / 2 - 4 });
         });
     });
     return cardH;
+}
+
+function pdfDrawTopologyLegend(pdf, PW, PH) {
+    const x = PW - 55;
+    const y = PH - 31;
+    const w = 47;
+    const h = 15;
+    pdf.setDrawColor(216, 224, 235);
+    pdf.setFillColor(255, 255, 255);
+    pdf.roundedRect(x, y, w, h, 2, 2, 'FD');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(5.8);
+    pdf.setTextColor(17, 24, 39);
+    pdf.text('Legend', x + 3, y + 4.5);
+    pdf.setLineWidth(0.7);
+    pdf.setDrawColor(232, 56, 44);
+    pdf.line(x + 4, y + 8.2, x + 12, y + 8.2);
+    pdf.setDrawColor(0, 126, 232);
+    pdf.line(x + 4, y + 12, x + 12, y + 12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(5.2);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('Red = Power', x + 15, y + 9);
+    pdf.text('Blue = Data', x + 15, y + 12.8);
 }
 
 function pdfPathPoints(p1, p2, laneOffset, direction) {
@@ -2941,22 +3305,15 @@ function pdfDrawArrowHead(pdf, p1, p2, color, size) {
 function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
     if (!lastMatrix?.length) return;
     const margin = 8;
+    const headerBottom = 15;
+    const footerTop = PH - 14;
     pdf.setFillColor(255, 255, 255);
     pdf.rect(0, 0, PW, PH, 'F');
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.setTextColor(17, 24, 39);
-    pdf.text(pageTitle, margin, 10);
-    let top = 16;
-    if (mode === 'power') {
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(7);
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(getPowerMappingSpecLabel(), margin, 15);
-        top = 20;
-    }
+    pdfDrawSectionTitle(pdf, pageTitle, margin, headerBottom + 6);
+    let top = headerBottom + 11;
+    if (mode === 'power') top += pdfDrawInfoStrip(pdf, getPowerInfoItems(), margin, top, PW - margin * 2, 4) + 4;
     if (includeStats) top += pdfDrawStats(pdf, margin, top, PW - margin * 2) + 6;
-    const layout = pdfGetMatrixLayout(lastMatrix, margin, top, PW - margin * 2, PH - top - margin);
+    const layout = pdfGetMatrixLayout(lastMatrix, margin, top, PW - margin * 2, footerTop - top);
     const direction = document.getElementById('routeDirectionSelect').value;
     const maps = getPdfControllerColorMaps(lastMatrix);
     const groupsPower = {};
@@ -3020,7 +3377,9 @@ function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
             for (let i = 1; i < points.length; i++) {
                 const pts = arrow ? pdfPowerPathPoints(points[i - 1], points[i], laneOffset, direction) : pdfPathPoints(points[i - 1], points[i], laneOffset, direction);
                 const arrowSize = 1.25;
-                pdfDrawPolyline(pdf, pts, stroke, mode === 'power' ? 0.55 : 0.62, arrow ? arrowSize * 1.15 : 0);
+                const isJumper = direction === 'horizontal' ? points[i - 1].r !== points[i].r : points[i - 1].c !== points[i].c;
+                const width = (mode === 'power' ? 0.55 : 0.62) + (isJumper ? 0.22 : 0);
+                pdfDrawPolyline(pdf, pts, stroke, width, arrow ? arrowSize * 1.15 : 0);
                 if (arrow && pts.length >= 2) pdfDrawArrowHead(pdf, pts[pts.length - 2], pts[pts.length - 1], stroke, arrowSize);
             }
         });
@@ -3088,12 +3447,24 @@ function getProcessorPdfPageData() {
         const ports = [...new Set([...occupied.values()].map(item => parseInt(item.cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10)))].sort((first, second) => first - second);
         const portIndex = new Map(ports.map((port, index) => [port, index]));
         const canvasMeta = getProcessorCanvasMeta(pieces, occupied, rowRatios, unitWidth);
+        const portLoads = new Map();
+        [...occupied.values()].forEach(item => {
+            const portNum = parseInt(item.cell.portLabel.match(/D(\d+)/)?.[1] || '1', 10);
+            const pixels = (item.cell.pixelW || currentProductObj.pixelW || 0) * (item.cell.pixelH || currentProductObj.pixelH || 0);
+            portLoads.set(portNum, (portLoads.get(portNum) || 0) + pixels);
+        });
+        const portLoadValues = [...portLoads.values()];
         return {
             controller,
             displayIndex,
             toneIndex: displayIndex + 1,
-            title: `Processor ${displayIndex + 1} canvas`,
+            title: `Processor ${displayIndex + 1}`,
             meta: canvasMeta.meta,
+            actualPixelW: canvasMeta.actualPixelW || 0,
+            actualPixelH: canvasMeta.actualPixelH || 0,
+            portCount: ports.length,
+            avgPortPixels: portLoadValues.length ? portLoadValues.reduce((sum, value) => sum + value, 0) / portLoadValues.length : 0,
+            maxPortPixels: portLoadValues.length ? Math.max(...portLoadValues) : 0,
             canvasCols,
             canvasRows,
             localCols,
@@ -3107,22 +3478,15 @@ function getProcessorPdfPageData() {
 
 function pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH) {
     const margin = 8;
+    const headerBottom = 15;
+    const footerTop = PH - 14;
     pdf.setFillColor(255, 255, 255);
     pdf.rect(0, 0, PW, PH, 'F');
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.setTextColor(17, 24, 39);
-    pdf.text(pageData.title, margin, 10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7);
-    pdf.setTextColor(100, 116, 139);
-    pdf.text(pageData.meta, margin, 15);
-    pdf.text(getProcessorSpecLabel(), margin, 19);
-
-    const top = 24;
+    pdfDrawSectionTitle(pdf, pageData.title, margin, headerBottom + 6);
+    const top = headerBottom + 11 + pdfDrawInfoStrip(pdf, getProcessorInfoItems(pageData), margin, headerBottom + 11, PW - margin * 2, 4) + 4;
     const gap = 0.28;
     const availableW = PW - margin * 2;
-    const availableH = PH - top - margin;
+    const availableH = footerTop - top;
     const totalRatio = pageData.rowRatios.reduce((sum, value) => sum + value, 0);
     const base = Math.min(
         (availableW - gap * (pageData.canvasCols - 1)) / pageData.canvasCols,
@@ -3196,7 +3560,9 @@ function pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH) {
         points.sort((a, b) => a.seq - b.seq);
         for (let i = 1; i < points.length; i++) {
             const pts = pdfPathPoints(points[i - 1], points[i], 0, document.getElementById('routeDirectionSelect')?.value || 'vertical');
-            pdfDrawPolyline(pdf, pts, '#1e9bff', 0.55);
+            const direction = document.getElementById('routeDirectionSelect')?.value || 'vertical';
+            const isJumper = direction === 'horizontal' ? points[i - 1].r !== points[i].r : points[i - 1].c !== points[i].c;
+            pdfDrawPolyline(pdf, pts, '#1e9bff', isJumper ? 0.78 : 0.55);
         }
     });
 
@@ -3224,11 +3590,13 @@ function pdfAddPageNumbers(pdf, PW, PH) {
     }
 }
 
-function exportMappingPdf() {
+async function exportMappingPdf() {
     renderPowerMapping(lastMatrix);
     clearPdfDetailPages();
     const jspdf = window.jspdf;
     if (!jspdf) { alert('PDF library not loaded'); return; }
+    await loadPdfLogoImage();
+    _pdfGeneratedTime = new Date().toLocaleString();
     const pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
     const PW = 297, PH = 210;
     drawVectorPdfIntroPages(pdf, PW, PH);
@@ -3236,7 +3604,7 @@ function exportMappingPdf() {
         pdf.addPage();
         pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH);
     });
-    pdfAddPageNumbers(pdf, PW, PH);
+    pdfAddReportChrome(pdf, PW, PH);
     pdf.save(getMappingPdfFilename());
 }
 
