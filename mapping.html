@@ -480,6 +480,7 @@ function getProcessorSpecLabel() {
 
 const PDF_REPORT_VERSION = '1.57';
 const REPORT_LOGO_SRC = 'ROE LOGO_RGB .jpg';
+const PDF_SAFE_MARGIN = 5;
 let _pdfGeneratedTime = '';
 let _pdfLogoImage = null;
 
@@ -667,30 +668,30 @@ function pdfDrawReportHeader(pdf, PW) {
         const scale = Math.min(maxW / imgW, maxH / imgH);
         const logoW = imgW * scale;
         const logoH = imgH * scale;
-        pdf.addImage(_pdfLogoImage, 'JPEG', 8, 2.4, logoW, logoH);
+        pdf.addImage(_pdfLogoImage, 'JPEG', 8 + PDF_SAFE_MARGIN, 5.4, logoW, logoH);
     } else {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(8);
         pdf.setTextColor(17, 24, 39);
-        pdf.text('ROE', 8, 7.5);
+        pdf.text('ROE', 8 + PDF_SAFE_MARGIN, 10.5);
     }
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(6.4);
     pdf.setTextColor(71, 85, 105);
     const headerLines = getReportHeaderLines();
-    pdf.text(headerLines[0], PW - 8, 5.3, { align: 'right' });
-    pdf.text(headerLines[1], PW - 8, 8.6, { align: 'right' });
+    pdf.text(headerLines[0], PW - 8 - PDF_SAFE_MARGIN, 8.3, { align: 'right' });
+    pdf.text(headerLines[1], PW - 8 - PDF_SAFE_MARGIN, 11.6, { align: 'right' });
     pdf.setDrawColor(226, 232, 240);
     pdf.setLineWidth(0.2);
-    pdf.line(8, 12.5, PW - 8, 12.5);
+    pdf.line(8 + PDF_SAFE_MARGIN, 15.5, PW - 8 - PDF_SAFE_MARGIN, 15.5);
 }
 
 function pdfDrawReportFooter(pdf, pageNo, total, PW, PH) {
-    const y = PH - 7;
+    const y = PH - 7 - PDF_SAFE_MARGIN;
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(6.2);
     pdf.setTextColor(100, 116, 139);
-    pdf.text(`Page ${pageNo} / ${total}`, PW - 8, y, { align: 'right' });
+    pdf.text(`Page ${pageNo} / ${total}`, PW - 8 - PDF_SAFE_MARGIN, y, { align: 'right' });
 }
 
 function pdfAddReportChrome(pdf, PW, PH) {
@@ -3315,7 +3316,7 @@ function pdfDrawArrowHead(pdf, p1, p2, color, size) {
 
 function pdfDrawVectorMap(pdf, mode, pageTitle, includeStats, PW, PH) {
     if (!lastMatrix?.length) return;
-    const margin = 8;
+    const margin = 8 + PDF_SAFE_MARGIN;
     const headerBottom = 15;
     const footerTop = PH - 14;
     pdf.setFillColor(255, 255, 255);
@@ -3488,7 +3489,7 @@ function getProcessorPdfPageData() {
 }
 
 function pdfDrawProcessorCanvasPage(pdf, pageData, PW, PH) {
-    const margin = 8;
+    const margin = 8 + PDF_SAFE_MARGIN;
     const headerBottom = 15;
     const footerTop = PH - 14;
     pdf.setFillColor(255, 255, 255);
